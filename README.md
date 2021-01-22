@@ -1,1 +1,1 @@
-# Subspace-decomposed--DNN
+# Subspace-DNN
