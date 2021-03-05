@@ -64,6 +64,13 @@ def dictionary_out2file(R_dic, log_fileout, actName2normal=None, actName2scale=N
     else:
         DNN_tools.log_string('optimizer:%s  with momentum=%f\n' % (R_dic['optimizer_name'], R_dic['momentum']), log_fileout)
 
+    if (R_dic['train_opt']) == 0:
+        DNN_tools.log_string('The model for training loss: %s\n' % 'total loss', log_fileout)
+    elif (R_dic['train_opt']) == 1:
+        DNN_tools.log_string('The model for training loss: %s\n' % 'total loss + loss_it + loss_bd + loss_U2U', log_fileout)
+    elif (R_dic['train_opt']) == 2:
+        DNN_tools.log_string('The model for training loss: %s\n' % 'total loss + loss_it + loss_bd', log_fileout)
+
     if R_dic['activate_stop'] != 0:
         DNN_tools.log_string('activate the stop_step and given_step= %s\n' % str(R_dic['max_epoch']), log_fileout)
     else:
@@ -223,10 +230,6 @@ def solve_Multiscale_PDE(R):
             Y_it = tf.reshape(XY_it[:, 1], shape=[-1, 1])
 
             U_NN = U_NN_Normal + U_NN_freqs
-            # ULeft_NN = ULeft_NN_Normal + ULeft_NN_freqs
-            # URight_NN = URight_NN_Normal + URight_NN_freqs
-            # UBottom_NN = UBottom_NN_Normal + UBottom_NN_freqs
-            # UTop_NN = UTop_NN_Normal + UTop_NN_freqs
 
             dU_NN_Normal = tf.gradients(U_NN_Normal, XY_it)[0]  # * 行 2 列
             dU_NN_freqs = tf.gradients(U_NN_freqs, XY_it)[0]  # * 行 2 列
@@ -303,6 +306,7 @@ def solve_Multiscale_PDE(R):
             loss_bd_square2freqs = tf.square(ULeft_NN_freqs - U_left) + tf.square(URight_NN_freqs - U_right) + \
                                     tf.square(UBottom_NN_freqs - U_bottom) + tf.square(UTop_NN_freqs - U_top)
             Loss_bd2NN = tf.reduce_mean(loss_bd_square2Normal) + tf.reduce_mean(loss_bd_square2freqs)
+            Loss_bd2NNs = bd_penalty * Loss_bd2NN
 
             if R['regular_weight_model'] == 'L1':
                 regular_WB2Normal = DNN_base.regular_weights_biases_L1(W2NN_Normal, B2NN_Normal)    # 正则化权重和偏置 L1正则化
@@ -316,32 +320,32 @@ def solve_Multiscale_PDE(R):
 
             penalty_Weigth_Bias = wb_regular * (regular_WB2Normal + regular_WB2freqs)
 
-            Loss2NN = Loss_it2NN + bd_penalty * Loss_bd2NN + Loss2UNN_dot_UNN + penalty_Weigth_Bias
+            Loss2NN = Loss_it2NN + Loss_bd2NNs + Loss2UNN_dot_UNN + penalty_Weigth_Bias
 
             my_optimizer = tf.train.AdamOptimizer(in_learning_rate)
             if R['variational_loss'] == 1:
-                if R['train_group'] == 1:
+                if R['train_opt'] == 1:
                     train_op1 = my_optimizer.minimize(Loss_it2NN, global_step=global_steps)
-                    train_op2 = my_optimizer.minimize(Loss_bd2NN, global_step=global_steps)
+                    train_op2 = my_optimizer.minimize(Loss_bd2NNs, global_step=global_steps)
                     train_op3 = my_optimizer.minimize(Loss2UNN_dot_UNN, global_step=global_steps)
                     train_op4 = my_optimizer.minimize(Loss2NN, global_step=global_steps)
                     train_loss2NN = tf.group(train_op1, train_op2, train_op3, train_op4)
-                elif R['train_group'] == 2:
+                elif R['train_opt'] == 2:
                     train_op1 = my_optimizer.minimize(Loss2NN, global_step=global_steps)
-                    train_op2 = my_optimizer.minimize(Loss_bd2NN, global_step=global_steps)
+                    train_op2 = my_optimizer.minimize(Loss_bd2NNs, global_step=global_steps)
                     train_op3 = my_optimizer.minimize(Loss2UNN_dot_UNN, global_step=global_steps)
                     train_loss2NN = tf.group(train_op1, train_op2, train_op3)
                 else:
                     train_loss2NN = my_optimizer.minimize(Loss2NN, global_step=global_steps)
             elif R['variational_loss'] == 2:
-                if R['train_group'] == 1:
+                if R['train_opt'] == 1:
                     train_op1 = my_optimizer.minimize(Loss_it2NN, global_step=global_steps)
-                    train_op2 = my_optimizer.minimize(Loss_bd2NN, global_step=global_steps)
+                    train_op2 = my_optimizer.minimize(Loss_bd2NNs, global_step=global_steps)
                     train_op3 = my_optimizer.minimize(Loss2NN, global_step=global_steps)
                     train_loss2NN = tf.group(train_op1, train_op2, train_op3)
-                elif R['train_group'] == 2:
+                elif R['train_opt'] == 2:
                     train_sin_op1 = my_optimizer.minimize(Loss2NN, global_step=global_steps)
-                    train_sin_op2 = my_optimizer.minimize(Loss_bd2NN, global_step=global_steps)
+                    train_sin_op2 = my_optimizer.minimize(Loss_bd2NNs, global_step=global_steps)
                     train_loss2NN = tf.group(train_sin_op1, train_sin_op2)
                 else:
                     train_loss2NN = my_optimizer.minimize(Loss2NN, global_step=global_steps)
@@ -605,8 +609,8 @@ if __name__ == "__main__":
     R['PDE_type'] = 'p_laplace2multi_scale_implicit'
     # R['equa_name'] = 'multi_scale2D_1'
     # R['equa_name'] = 'multi_scale2D_2'
-    # R['equa_name'] = 'multi_scale2D_3'
-    R['equa_name'] = 'multi_scale2D_4'      # p=2
+    R['equa_name'] = 'multi_scale2D_3'
+    # R['equa_name'] = 'multi_scale2D_4'      # p=2
     # R['equa_name'] = 'multi_scale2D_5'    # p=3
 
     if R['PDE_type'] == 'general_laplace':
@@ -662,7 +666,8 @@ if __name__ == "__main__":
     # R['wavelet'] = 2                   # 0: L2 wavelet+energy    1: L2 wavelet     2:energy
 
     R['hot_power'] = 1
-    R['freqs'] = np.arange(10, 100)
+    # R['freqs'] = np.arange(10, 100)
+    R['freqs'] = np.arange(11, 101)
     # R['freqs'] = np.arange(6, 105)
     # R['freqs'] = np.concatenate((np.arange(2, 100), [100]), axis=0)
 
@@ -691,7 +696,8 @@ if __name__ == "__main__":
     R['learning_rate'] = 2e-4                             # 学习率
     R['learning_rate_decay'] = 5e-5                       # 学习率 decay
     R['optimizer_name'] = 'Adam'                          # 优化器
-    R['train_group'] = 1
+    R['train_opt'] = 0
+    # R['train_opt'] = 1
 
     R['model2normal'] = 'PDE_DNN'  # 使用的网络模型
     # R['model2normal'] = 'PDE_DNN_BN'
@@ -704,8 +710,8 @@ if __name__ == "__main__":
     # R['model2scale'] = 'PDE_DNN_scale'
     # R['model2scale'] = 'PDE_DNN_adapt_scale'
     # R['model2scale'] = 'PDE_DNN_FourierBase'
-    # R['model2scale'] = 'PDE_DNN_Cos_C_Sin_Base'
-    R['model2scale'] = 'DNN_adaptCosSin_Base'
+    R['model2scale'] = 'PDE_DNN_Cos_C_Sin_Base'
+    # R['model2scale'] = 'DNN_adaptCosSin_Base'
 
     # normal 和 scale 网络的总参数数目:41380 + 83820 = 125200
     # R['hidden2normal'] = (50, 10, 8, 8, 6)
@@ -727,10 +733,10 @@ if __name__ == "__main__":
 
     # 激活函数的选择
     # R['act_name2NN1'] = 'relu'
-    # R['act_name2NN1'] = 'tanh'
+    R['act_name2NN1'] = 'tanh'
     # R['act_name2NN1'] = 'srelu'
     # R['act_name2NN1'] = 'sin'
-    R['act_name2NN1'] = 's2relu'
+    # R['act_name2NN1'] = 's2relu'
     # R['act_name2NN1'] = 'sin_modify_mexican'
 
     # R['act_name2NN2'] = 'relu'

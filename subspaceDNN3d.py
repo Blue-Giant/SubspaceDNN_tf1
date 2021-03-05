@@ -121,6 +121,7 @@ def solve_Multiscale_PDE(R):
 
     input_dim = R['input_dim']
     out_dim = R['output_dim']
+    alpha = R['contrib2scale']
 
     # 求解如下方程, A_eps(x) 震荡的比较厉害，具有多个尺度
     #       d      ****         d         ****
@@ -208,7 +209,7 @@ def solve_Multiscale_PDE(R):
             X_it = tf.reshape(XYZ_it[:, 0], shape=[-1, 1])
             Y_it = tf.reshape(XYZ_it[:, 1], shape=[-1, 1])
             Z_it = tf.reshape(XYZ_it[:, 2], shape=[-1, 1])
-            U_NN = U_NN_Normal + U_NN_Scale
+            U_NN = U_NN_Normal + alpha*U_NN_Scale
 
             dU_NN_Normal = tf.gradients(U_NN_Normal, XYZ_it)[0]  # * 行 3 列
             dU_NN_Scale = tf.gradients(U_NN_Scale, XYZ_it)[0]  # * 行 3 列
@@ -216,7 +217,7 @@ def solve_Multiscale_PDE(R):
             if R['variational_loss'] == 1:
                 # 0.5*|grad (Uc+Uf)|^p - f(x)*(Uc+Uf),            grad (Uc+Uf) = grad Uc + grad Uf
                 # 0.5*a(x)*|grad (Uc+Uf)|^p - f(x)*(Uc+Uf),       grad (Uc+Uf) = grad Uc + grad Uf
-                dU_NN = tf.add(dU_NN_Normal, dU_NN_Scale)
+                dU_NN = tf.add(dU_NN_Normal, alpha*dU_NN_Scale)
                 norm2dU_NN = tf.reshape(tf.sqrt(tf.reduce_sum(tf.square(dU_NN), axis=-1)), shape=[-1, 1])  # 按行求和
                 if R['PDE_type'] == 'general_laplace':
                     laplace_pow_Normal = tf.square(norm2dU_NN)
@@ -231,12 +232,12 @@ def solve_Multiscale_PDE(R):
 
                 if R['wavelet'] == 1:
                     # |Uc*Uf|^2-->0
-                    norm2UdU = tf.reshape(tf.reduce_sum(tf.square(tf.multiply(U_NN_Normal, U_NN_Scale)), axis=-1),
+                    norm2UdU = tf.reshape(tf.reduce_sum(tf.square(tf.multiply(U_NN_Normal, alpha*U_NN_Scale)), axis=-1),
                                           shape=[-1, 1])
                     UNN_dot_UNN = tf.reduce_mean(norm2UdU, axis=0)
                 elif R['wavelet'] == 2:
                     # |a(x)*(grad Uc)*(grad Uf)|^2-->0
-                    dU_dot_dU = tf.multiply(dU_NN_Normal, dU_NN_Scale)
+                    dU_dot_dU = tf.multiply(dU_NN_Normal, alpha*dU_NN_Scale)
                     sum2dUdU = tf.reshape(tf.reduce_sum(dU_dot_dU, axis=-1), shape=[-1, 1])
                     norm2AdUdU = tf.square(tf.multiply(a_eps, sum2dUdU))
                     # norm2AdUdU = tf.square(sum2dUdU)
@@ -244,8 +245,8 @@ def solve_Multiscale_PDE(R):
                 else:
                     # |Uc*Uf|^2 + |a(x)*(grad Uc)*(grad Uf)|^2-->0
                     # |Uc*Uf|^2 + |(grad Uc)*(grad Uf)|^2-->0
-                    U_dot_U = tf.reduce_mean(tf.square(tf.multiply(U_NN_Normal, U_NN_Scale)), axis=0)
-                    dU_dot_dU = tf.multiply(dU_NN_Normal, dU_NN_Scale)
+                    U_dot_U = tf.reduce_mean(tf.square(tf.multiply(U_NN_Normal, alpha*U_NN_Scale)), axis=0)
+                    dU_dot_dU = tf.multiply(dU_NN_Normal, alpha*dU_NN_Scale)
                     sum2dUdU = tf.reshape(tf.reduce_sum(dU_dot_dU, axis=-1), shape=[-1, 1])
                     # norm2AdUdU = tf.square(tf.multiply(a_eps, sum2dUdU))
                     norm2AdUdU = tf.square(sum2dUdU)
@@ -269,7 +270,7 @@ def solve_Multiscale_PDE(R):
 
                 if R['wavelet'] == 1:
                     # |Uc*Uf|^2-->0
-                    norm2UdU = tf.reshape(tf.reduce_sum(tf.square(tf.multiply(U_NN_Normal, U_NN_Scale)), axis=-1),
+                    norm2UdU = tf.reshape(tf.reduce_sum(tf.square(tf.multiply(U_NN_Normal, alpha*U_NN_Scale)), axis=-1),
                                           shape=[-1, 1])
                     UNN_dot_UNN = tf.reduce_mean(norm2UdU, axis=0)
                 else:
@@ -280,9 +281,9 @@ def solve_Multiscale_PDE(R):
             loss_bd_square2Normal = tf.square(ULeft_NN_Normal) + tf.square(URight_NN_Normal) + \
                                     tf.square(UBottom_NN_Normal) + tf.square(UTop_NN_Normal) + \
                                     tf.square(UFront_NN_Normal) + tf.square(UBehind_NN_Normal)
-            loss_bd_square2Scale = tf.square(ULeft_NN_Scale) + tf.square(URight_NN_Scale) + \
-                                    tf.square(UBottom_NN_Scale) + tf.square(UTop_NN_Scale) + \
-                                    tf.square(UFront_NN_Scale) + tf.square(UBehind_NN_Scale)
+            loss_bd_square2Scale = tf.square(alpha*ULeft_NN_Scale) + tf.square(alpha*URight_NN_Scale) + \
+                                    tf.square(alpha*UBottom_NN_Scale) + tf.square(alpha*UTop_NN_Scale) + \
+                                    tf.square(alpha*UFront_NN_Scale) + tf.square(alpha*UBehind_NN_Scale)
             Loss_bd2NN = tf.reduce_mean(loss_bd_square2Normal) + tf.reduce_mean(loss_bd_square2Scale)
 
             Loss_bd2NNs = bd_penalty * Loss_bd2NN
@@ -617,7 +618,7 @@ if __name__ == "__main__":
     # R['wavelet'] = 2                  # 0: L2 wavelet+energy    1: L2 wavelet     2:energy
 
     R['hot_power'] = 1
-    R['freqs'] = np.arange(10, 100)
+    R['freqs'] = np.arange(10, 101)
     # R['freqs'] = np.arange(6, 105)
     # R['freqs'] = np.concatenate((np.arange(2, 100), [100]), axis=0)
     R['testData_model'] = 'loadData'
@@ -707,6 +708,6 @@ if __name__ == "__main__":
     # R['act_name2NN2'] = 'elu'
     # R['act_name2NN2'] = 'selu'
     # R['act_name2NN2'] = 'phi'
-
+    R['contrib2scale'] = 0.01
     solve_Multiscale_PDE(R)
 

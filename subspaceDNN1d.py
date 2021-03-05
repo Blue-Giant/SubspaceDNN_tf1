@@ -46,6 +46,9 @@ def dictionary_out2file(R_dic, log_fileout, actName2normal=None, actName2scale=N
         DNN_tools.log_string('The model for training loss: %s\n' % 'total loss + loss_it + loss_bd + loss_U2U', log_fileout)
     elif (R_dic['train_opt']) == 2:
         DNN_tools.log_string('The model for training loss: %s\n' % 'total loss + loss_it + loss_bd', log_fileout)
+    elif (R_dic['train_opt']) == 4:
+        DNN_tools.log_string('The model for training loss: %s\n' % 'total loss + loss_U2U', log_fileout)
+
 
     if R_dic['variational_loss'] == 1 or R_dic['variational_loss'] == 2:
         DNN_tools.log_string('Loss function: variational loss ' + str(R_dic['variational_loss']) +'\n', log_fileout)
@@ -110,7 +113,7 @@ def solve_Multiscale_PDE(R):
     # ------- set the problem ---------
     input_dim = R['input_dim']
     out_dim = R['output_dim']
-
+    alpha = R['contrib2scale']
     act_func1 = R['act_name2NN1']
     act_func2 = R['act_name2NN2']
 
@@ -220,13 +223,13 @@ def solve_Multiscale_PDE(R):
                 ULeft_NN_freqs = DNN_base.DNN_adaptCosSin_Base(X_left_bd, W2NN_freqs, B2NN_freqs, hidden2scale, freqs, activate_name=act_func2)
                 URight_NN_freqs = DNN_base.DNN_adaptCosSin_Base(X_right_bd, W2NN_freqs, B2NN_freqs, hidden2scale, freqs, activate_name=act_func2)
 
-            U_NN = U_NN_Normal + U_NN_freqs
+            U_NN = U_NN_Normal + alpha*U_NN_freqs
 
             # 变分形式的loss of interior，训练得到的 U_NN1 是 * 行 1 列, 因为 一个点对(x,y) 得到一个 u 值
             dU_NN_Normal = tf.gradients(U_NN_Normal, X_it)[0]    # * 行 2 列
             dU_NN_freqs = tf.gradients(U_NN_freqs, X_it)[0]      # * 行 2 列
             if R['variational_loss'] == 1:
-                dUNN = tf.add(dU_NN_Normal, dU_NN_freqs)
+                dUNN = tf.add(dU_NN_Normal, alpha*dU_NN_freqs)
                 if R['PDE_type'] == 'general_laplace':
                     laplace_norm2NN = tf.reduce_sum(tf.square(dUNN), axis=-1)
                     loss_it_NN = (1.0 / 2) * tf.reshape(laplace_norm2NN, shape=[-1, 1]) - \
@@ -239,30 +242,30 @@ def solve_Multiscale_PDE(R):
                     loss_it_NN = (1.0 / p_index) * laplace_p_pow2NN - \
                                  tf.multiply(tf.reshape(f(X_it), shape=[-1, 1]), U_NN)
 
-                Loss_it2NN = tf.reduce_mean(loss_it_NN)*(region_r-region_l)
+                Loss_it2NN = tf.reduce_mean(loss_it_NN)
 
                 if R['wavelet'] == 1:
                     # |Uc*Uf|^2-->0 Uc 和 Uf 是两个列向量 形状为(*,1)
                     # norm2UdU = tf.square(tf.multiply(U_NN_Normal, U_NN_freqs))
                     # ajshas = tf.square(tf.multiply(U_NN_Normal, U_NN_freqs))
-                    norm2UdU = tf.reduce_sum(tf.square(tf.multiply(U_NN_Normal, U_NN_freqs)), axis=-1)
-                    # smdnfds = tf.reshape(norm2UdU, shape=[-1, 1])
+                    norm2UdU = tf.reduce_sum(tf.square(tf.multiply(U_NN_Normal, alpha*U_NN_freqs)), axis=-1)
+                    # norm2UdU = tf.reduce_sum(tf.square(tf.multiply(U_NN_Normal, U_NN_freqs)), axis=-1)
                     UNN_dot_UNN = tf.reduce_mean(tf.reshape(norm2UdU, shape=[-1, 1]))
                 elif R['wavelet'] == 2:
                     # |a(x)*(grad Uc)*(grad Uf)|^2-->0 a(x) 是 (*,1)的；(grad Uc)*(grad Uf)是向量相乘(*,2)·(*,2)
-                    dU_dot_dU = tf.multiply(dU_NN_Normal, dU_NN_freqs)
+                    dU_dot_dU = tf.multiply(dU_NN_Normal, alpha*dU_NN_freqs)
                     sum2dUdU = tf.reshape(tf.reduce_sum(dU_dot_dU, axis=-1), shape=[-1, 1])
                     norm2AdUdU = tf.square(tf.multiply(a_eps, sum2dUdU))
                     # norm2AdUdU = tf.square(sum2dUdU)
                     UNN_dot_UNN = tf.reduce_mean(norm2AdUdU)
                 else:  # |Uc*Uf|^2-->0 + |a(x)*(grad Uc)*(grad Uf)|^2-->0
-                    U_dot_U = tf.reduce_sum(tf.square(tf.multiply(U_NN_Normal, U_NN_freqs)), axis=-1)
-                    dU_dot_dU = tf.multiply(dU_NN_Normal, dU_NN_freqs)
+                    U_dot_U = tf.reduce_sum(tf.square(tf.multiply(U_NN_Normal, alpha*U_NN_freqs)), axis=-1)
+                    dU_dot_dU = tf.multiply(dU_NN_Normal, alpha*dU_NN_freqs)
                     sum2dUdU = tf.reshape(tf.reduce_sum(dU_dot_dU, axis=-1), shape=[-1, 1])
                     norm2AdUdU = tf.square(tf.multiply(a_eps, sum2dUdU))
                     UNN_dot_UNN = tf.reduce_mean(norm2AdUdU) + tf.reduce_mean(U_dot_U)
             elif R['variational_loss'] == 2:
-                dU_NN = tf.add(dU_NN_Normal, dU_NN_freqs)
+                dU_NN = tf.add(dU_NN_Normal, alpha*dU_NN_freqs)
                 if R['PDE_type'] == 'general_laplace':
                     laplace_norm2NN = tf.reduce_sum(tf.square(dU_NN), axis=-1)
                     loss_it_NN = (1.0 / 2) * tf.reshape(laplace_norm2NN, shape=[-1, 1]) - \
@@ -275,7 +278,7 @@ def solve_Multiscale_PDE(R):
                                            tf.multiply(tf.reshape(f(X_it), shape=[-1, 1]), U_NN)
                 Loss_it2NN = tf.reduce_mean(loss_it_NN)*(region_r-region_l)
                 if R['wavelet'] == 1:
-                    norm2UdU = tf.square(tf.multiply(U_NN_Normal, U_NN_freqs))
+                    norm2UdU = tf.square(tf.multiply(U_NN_Normal, alpha*U_NN_freqs))
                     UNN_dot_UNN = tf.reduce_mean(norm2UdU, axis=0)
                 else:
                     UNN_dot_UNN = tf.constant(0.0)
@@ -285,8 +288,7 @@ def solve_Multiscale_PDE(R):
             U_left = tf.reshape(u_left(X_left_bd), shape=[-1, 1])
             U_right = tf.reshape(u_right(X_right_bd), shape=[-1, 1])
             loss_bd_Normal = tf.square(ULeft_NN_Normal - U_left) + tf.square(URight_NN_Normal - U_right)
-            # loss_bd_Freqs = tf.square(ULeft_NN_freqs - U_left) + tf.square(URight_NN_freqs - U_right)
-            loss_bd_Freqs = tf.square(ULeft_NN_freqs) + tf.square(URight_NN_freqs)
+            loss_bd_Freqs = tf.square(alpha*ULeft_NN_freqs) + tf.square(alpha*URight_NN_freqs)
             Loss_bd2NN = tf.reduce_mean(loss_bd_Normal) + tf.reduce_mean(loss_bd_Freqs)
 
             Loss_bd2NNs = bd_penalty * Loss_bd2NN
@@ -306,7 +308,9 @@ def solve_Multiscale_PDE(R):
             if R['train_opt'] == 3:
                 Loss2NN = Loss_it2NN + Loss_bd2NNs + penalty_Weigth_Bias
             else:
-                Loss2NN = Loss_it2NN + Loss_bd2NNs + Loss2UNN_dot_UNN + penalty_Weigth_Bias
+                # Loss2NN = Loss_it2NN + Loss_bd2NNs + Loss2UNN_dot_UNN + penalty_Weigth_Bias
+                Loss2scale = tf.square(alpha * tf.reduce_mean(U_NN_freqs))
+                Loss2NN = Loss_it2NN + Loss2scale + Loss_bd2NNs + Loss2UNN_dot_UNN + penalty_Weigth_Bias
 
             my_optimizer = tf.train.AdamOptimizer(in_learning_rate)
             if R['variational_loss'] == 1:
@@ -452,8 +456,8 @@ def solve_Multiscale_PDE(R):
                 # ---------------------------   test network ----------------------------------------------
                 test_epoch.append(i_epoch / 1000)
                 train_option = False
-                u_true2test, utest_nn, u_nn_normal, u_nn_scale = sess.run(
-                    [U_true, U_NN, U_NN_Normal, U_NN_freqs], feed_dict={X_it: test_x_bach, train_opt: train_option})
+                u_true2test, utest_nn, unn_normal, unn_scale = sess.run(
+                    [U_true, U_NN, U_NN_Normal, alpha*U_NN_freqs], feed_dict={X_it: test_x_bach, train_opt: train_option})
                 test_mse2nn = np.mean(np.square(u_true2test - utest_nn))
                 test_mse_all2NN.append(test_mse2nn)
                 test_rel2nn = test_mse2nn / np.mean(np.square(u_true2test))
@@ -478,8 +482,8 @@ def solve_Multiscale_PDE(R):
         # ----------------------  save testing results to mat files, then plot them --------------------------------
         saveData.save_testData_or_solus2mat(u_true2test, dataName='Utrue', outPath=R['FolderName'])
         saveData.save_testData_or_solus2mat(utest_nn, dataName=act_func1, outPath=R['FolderName'])
-        saveData.save_testData_or_solus2mat(u_nn_normal, dataName='normal', outPath=R['FolderName'])
-        saveData.save_testData_or_solus2mat(u_nn_scale, dataName='scale', outPath=R['FolderName'])
+        saveData.save_testData_or_solus2mat(unn_normal, dataName='normal', outPath=R['FolderName'])
+        saveData.save_testData_or_solus2mat(unn_scale, dataName='scale', outPath=R['FolderName'])
 
         saveData.save_testMSE_REL2mat(test_mse_all2NN, test_rel_all2NN, actName=act_func2, outPath=R['FolderName'])
         plotData.plotTest_MSE_REL(test_mse_all2NN, test_rel_all2NN, test_epoch, actName=act_func2, seedNo=R['seed'],
@@ -595,6 +599,7 @@ if __name__ == "__main__":
         R['balance2solus'] = 10000.0
     else:
         R['balance2solus'] = 20.0
+        # R['balance2solus'] = 15.0
         # R['balance2solus'] = 10.0
 
     R['learning_rate'] = 2e-4                             # 学习率
@@ -690,13 +695,13 @@ if __name__ == "__main__":
 
     R['plot_ongoing'] = 0
     R['subfig_type'] = 0
-    R['freqs'] = np.arange(10, 100)
+    R['freqs'] = np.arange(11, 101)
     # freqs = np.arange(20, 110, 10)
     # freqs = np.arange(15, 115, 10)
     # R['freqs'] = np.repeat(freqs, 10, 0)
-    # R['freqs'] = np.concatenate(([1], np.arange(1, 100 - 1)), axis=0)
-    # R['freqs'] = np.concatenate((np.arange(2, 100), [100]), axis=0)
-    # R['freqs'] = np.concatenate((np.arange(6, 100), [100]), axis=0)
+
+    R['contrib2scale'] = 0.01
+    # R['contrib2scale'] = 0.1
 
     solve_Multiscale_PDE(R)
 
