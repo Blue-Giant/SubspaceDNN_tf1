@@ -472,11 +472,11 @@ def solve_Multiscale_PDE(R):
                 train_option = False
                 if R['PDE_type'] == 'general_laplace' or R['PDE_type'] == 'p_laplace2multi_scale':
                     u_true2test, utest_nn, utest_normal, utest_freqs = sess.run(
-                        [U_true, U_NN, U_NN_Normal, U_NN_Scale], feed_dict={XYZ_it: test_xyz_bach, train_opt: train_option})
+                        [U_true, U_NN, U_NN_Normal, alpha*U_NN_Scale], feed_dict={XYZ_it: test_xyz_bach, train_opt: train_option})
                 else:
                     u_true2test = u_true
                     utest_nn, utest_normal, utest_freqs = sess.run(
-                        [U_NN, U_NN_Normal, U_NN_Scale], feed_dict={XYZ_it: test_xyz_bach, train_opt: train_option})
+                        [U_NN, U_NN_Normal, alpha*U_NN_Scale], feed_dict={XYZ_it: test_xyz_bach, train_opt: train_option})
 
                 point_ERR2NN = np.square(u_true2test - utest_nn)
                 test_mse2nn = np.mean(point_ERR2NN)
