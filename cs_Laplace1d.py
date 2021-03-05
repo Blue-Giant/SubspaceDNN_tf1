@@ -5,11 +5,14 @@ import numpy as np
 import matplotlib
 import platform
 import shutil
-import Laplace1d_split
+import subspaceDNN1d
 
 R={}
 # -------------------------------------- CPU or GPU 选择 -----------------------------------------------
 R['gpuNo'] = 0
+# 默认使用 GPU，这个标记就不要设为-1，设为0,1,2,3,4....n（n指GPU的数目，即电脑有多少块GPU）
+# os.environ["CUDA_VISIBLE_DEVICES"] = "-1" # -1代表使用 CPU 模式
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # 设置当前使用的GPU设备仅为第 0 块GPU, 设备名称为'/gpu:0'
 if platform.system() == 'Windows':
     os.environ["CDUA_VISIBLE_DEVICES"] = "%s" % (R['gpuNo'])
 else:
@@ -48,13 +51,15 @@ else:
 
 # ---------------------------- Setup of laplace equation ------------------------------
 # if the value of step_stop_flag is not 0, it will activate stop condition of step to kill program
-R['activate_stop'] = int(1)
+step_stop_flag = input('please input an  integer number to activate step-stop----0:no---!0:yes--:')
+R['activate_stop'] = int(step_stop_flag)
+# if the value of step_stop_flag is not 0, it will activate stop condition of step to kill program
 R['max_epoch'] = 200000
 if 0 != R['activate_stop']:
-    # R['max_epoch'] = int(60000)
-    R['max_epoch'] = int(100000)
+    epoch_stop = input('please input a stop epoch:')
+    R['max_epoch'] = int(epoch_stop)
 
-# R['equa_name'] = 'general_laplace'
+# R['PDE_type'] = 'general_laplace'
 # R['equa_name'] = 'PDE1'
 # R['equa_name'] = 'PDE2'
 # R['equa_name'] = 'PDE3'
@@ -66,23 +71,25 @@ if 0 != R['activate_stop']:
 R['PDE_type'] = 'p_laplace'
 R['equa_name'] = 'multi_scale'
 
-if R['equa_name'] == 'general_laplace':
+if R['PDE_type'] == 'general_laplace':
     R['epsilon'] = 0.1
     R['order2laplace'] = 2
 elif R['PDE_type'] == 'p_laplace':
     # 频率设置
-    R['epsilon'] = float(0.01)
+    epsilon = input('please input epsilon =')  # 由终端输入的会记录为字符串形式
+    R['epsilon'] = float(epsilon)              # 字符串转为浮点
 
     # 问题幂次
-    order = float(8)
+    order2p_laplace = input('please input the order(a int number) to p-laplace:')
+    order = float(order2p_laplace)
     R['order2laplace'] = order
 
 R['input_dim'] = 1                         # 输入维数，即问题的维数(几元问题)
 R['output_dim'] = 1                        # 输出维数
 R['variational_loss'] = 1                  # PDE变分
-# R['wavelet'] = 0                           # 0:: L2 wavelet+energy 1: wavelet 2:energy
-R['wavelet'] = 1                           # 0:: L2 wavelet+energy 1: wavelet 2:energy
-# R['wavelet'] = 2                           # 0:: L2 wavelet+energy 1: wavelet 2:energy
+# R['wavelet'] = 0                         # 0: L2 wavelet+energy    1: wavelet    2:energy
+R['wavelet'] = 1                         # 0: L2 wavelet+energy    1: wavelet    2:energy
+# R['wavelet'] = 2                           # 0: L2 wavelet+energy    1: wavelet    2:energy
 
 # ---------------------------- Setup of DNN -------------------------------
 R['batch_size2interior'] = 3000            # 内部训练数据的批大小
@@ -94,7 +101,6 @@ R['weight_biases_model'] = 'general_model'
 R['regular_weight_model'] = 'L0'
 # R['regular_weight_model'] = 'L1'
 # R['regular_weight_model'] = 'L2'
-
 R['regular_weight_biases'] = 0.000     # Regularization parameter for weights
 # R['regular_weight_biases'] = 0.001   # Regularization parameter for weights
 # R['regular_weight_biases'] = 0.0025  # Regularization parameter for weights
@@ -109,18 +115,23 @@ elif R['activate_powSolus_increase'] == 2:
     R['balance2solus'] = 10000.0
 else:
     R['balance2solus'] = 20.0
+    # R['balance2solus'] = 15.0
+    # R['balance2solus'] = 10.0
 
 R['learning_rate'] = 2e-4                             # 学习率
 R['learning_rate_decay'] = 5e-5                       # 学习率 decay
 R['optimizer_name'] = 'Adam'                          # 优化器
-R['train_group'] = 1
+R['train_opt'] = 0
+# R['train_opt'] = 1
+# R['train_opt'] = 3
+# R['train_opt'] = 4
 
 R['model2normal'] = 'PDE_DNN'  # 使用的网络模型
-# R['model2normal'] = 'PDE_DNN_sin'
-# R['model2normal'] = 'PDE_DNN_BN'
 # R['model2normal'] = 'PDE_DNN_scale'
 # R['model2normal'] = 'PDE_DNN_adapt_scale'
 # R['model2normal'] = 'PDE_DNN_FourierBase'
+# R['model2normal'] = 'PDE_DNN_Cos_C_Sin_Base'
+# R['model2normal'] = 'DNN_adaptCosSin_Base'
 
 # R['model2scale'] = 'PDE_DNN'                         # 使用的网络模型
 # R['model2scale'] = 'PDE_DNN_BN'
@@ -128,14 +139,18 @@ R['model2normal'] = 'PDE_DNN'  # 使用的网络模型
 # R['model2scale'] = 'PDE_DNN_adapt_scale'
 # R['model2scale'] = 'PDE_DNN_FourierBase'
 R['model2scale'] = 'PDE_DNN_Cos_C_Sin_Base'
+# R['model2scale'] = 'DNN_adaptCosSin_Base'
 
 # normal 和 scale 网络的总参数数目:12520 + 29360 = 41880
-R['hidden2normal'] = (100, 80, 60, 60, 40)                   # 1*100+100*80+80*60+60*60+60*40+40*1 = 18940个参数
-# R['hidden2normal'] = (200, 100, 100, 80, 80, 50)
-# R['hidden2normal'] = (300, 200, 200, 100, 100, 50)
-# R['hidden2normal'] = (500, 400, 300, 200, 100)
+if R['model2normal'] == 'PDE_DNN_Cos_C_Sin_Base' or R['model2normal'] == 'DNN_adaptCosSin_Base':
+    R['hidden2normal'] = (50, 80, 60, 60, 40)  # 1*100+100*80+80*60+60*60+60*40+40*1 = 18940个参数
+else:
+    R['hidden2normal'] = (100, 80, 60, 60, 40)          # 1*100+100*80+80*60+60*60+60*40+40*1 = 18940个参数
+    # R['hidden2normal'] = (200, 100, 100, 80, 80, 50)
+    # R['hidden2normal'] = (300, 200, 200, 100, 100, 50)
+    # R['hidden2normal'] = (500, 400, 300, 200, 100)
 
-if R['model2scale'] == 'PDE_DNN_Cos_C_Sin_Base':
+if R['model2scale'] == 'PDE_DNN_Cos_C_Sin_Base' or R['model2scale'] == 'DNN_adaptCosSin_Base':
     if R['order2laplace'] == 2:
         if R['epsilon'] == 0.1:
             R['hidden2scale'] = (100, 60, 60, 50, 40)        # 1*200+200*60+60*60+60*50+50*40+40*1=20840 个参数
@@ -145,7 +160,7 @@ if R['model2scale'] == 'PDE_DNN_Cos_C_Sin_Base':
         if R['epsilon'] == 0.1:
             R['hidden2scale'] = (100, 80, 80, 60, 40)        # 1*200+200*80+80*80+80*60+60*40+40*1=29840 个参数
         else:
-            R['hidden2scale'] = (125, 80, 80, 60, 40)       # 1*250+250*80+80*80+80*60+60*40+40*1=33890 个参数
+            R['hidden2scale'] = (125, 80, 80, 60, 40)        # 1*250+250*80+80*80+80*60+60*40+40*1=33890 个参数
     elif R['order2laplace'] == 8:
         if R['epsilon'] == 0.1:
             R['hidden2scale'] = (100, 120, 80, 80, 60)       # 1*200+200*120+120*80+80*80+80*60+60*1=45060 个参数
@@ -161,26 +176,25 @@ else:
         if R['epsilon'] == 0.1:
             R['hidden2scale'] = (200, 80, 80, 60, 40)        # 1*200+200*80+80*80+80*60+60*40+40*1=29840 个参数
         else:
-            R['hidden2scale'] = (250, 80, 80, 60, 40)        # 1*250+250*80+80*80+80*60+60*40+40*1=33890 个参数
+            R['hidden2scale'] = (250, 80, 80, 60, 40)       # 1*250+250*80+80*80+80*60+60*40+40*1=33890 个参数
     elif R['order2laplace'] == 8:
         if R['epsilon'] == 0.1:
             R['hidden2scale'] = (200, 120, 80, 80, 60)       # 1*200+200*120+120*80+80*80+80*60+60*1=45060 个参数
         else:
             R['hidden2scale'] = (250, 120, 80, 80, 60)       # 1*250+250*120+120*80+80*80+80*60+60*1=51110 个参数
     else:
-        R['hidden2scale'] = (250, 120, 80, 80, 60)           # 1*250+250*120+120*80+80*80+80*60+60*1=51110 个参数
+        R['hidden2scale'] = (250, 120, 80, 80, 60)               # 1*250+250*120+120*80+80*80+80*60+60*1=51110 个参数
         # R['hidden2scale'] = (300, 200, 200, 100, 100, 50)
         # R['hidden2scale'] = (500, 400, 300, 200, 100)
         # R['hidden2scale'] = (500, 400, 300, 300, 200, 100)
         # R['hidden2scale'] = (500, 400, 300, 200, 200, 100)
 
-
 # 激活函数的选择
 # R['act_name2NN1'] = 'relu'
-# R['act_name2NN1'] = 'tanh'
+R['act_name2NN1'] = 'tanh'
 # R['act_name2NN1'] = 'srelu'
 # R['act_name2NN1'] = 'sin'
-R['act_name2NN1'] = 's2relu'
+# R['act_name2NN1'] = 's2relu'
 
 # R['act_name2NN2'] = 'relu'
 # R['act_name2NN2']' = leaky_relu'
@@ -197,6 +211,12 @@ R['act_name2NN2'] = 's2relu'
 
 R['plot_ongoing'] = 0
 R['subfig_type'] = 0
-R['freqs'] = np.arange(10, 100)
+R['freqs'] = np.arange(11, 101)
+# freqs = np.arange(20, 110, 10)
+# freqs = np.arange(15, 115, 10)
+# R['freqs'] = np.repeat(freqs, 10, 0)
 
-Laplace1d_split.solve_Multiscale_PDE(R)
+R['contrib2scale'] = 0.01
+# R['contrib2scale'] = 0.1
+
+subspaceDNN1d.solve_Multiscale_PDE(R)
