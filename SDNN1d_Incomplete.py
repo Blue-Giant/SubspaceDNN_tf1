@@ -236,24 +236,7 @@ def solve_Multiscale_PDE(R):
 
                 Loss_it2NN = tf.reduce_mean(loss_it_NN)
 
-                if R['wavelet'] == 1:
-                    # |Uc*Uf|^2-->0 Uc 和 Uf 是两个列向量 形状为(*, 1)
-                    # norm2UdU = tf.square(tf.multiply(U_NN_Normal, UNN_Scale))
-                    norm2UdU = tf.reshape(tf.square(tf.multiply(UNN_Normal, alpha*UNN_Scale), shape=[-1, 1]))
-                    UNN_dot_UNN = tf.reduce_mean(norm2UdU)
-                elif R['wavelet'] == 2:
-                    # |a(x)*(grad Uc)*(grad Uf)|^2-->0 a(x) 是 (*,1)的；(grad Uc)*(grad Uf)是向量相乘(*,2)·(*,2)
-                    dU_dot_dU = tf.multiply(dUNN_Normal, alpha*dUNN_Scale)
-                    sum2dUdU = tf.reshape(tf.reduce_sum(dU_dot_dU, axis=-1), shape=[-1, 1])
-                    norm2AdUdU = tf.square(tf.multiply(a_eps, sum2dUdU))
-                    # norm2AdUdU = tf.square(sum2dUdU)
-                    UNN_dot_UNN = tf.reduce_mean(norm2AdUdU)
-                else:  # |Uc*Uf|^2-->0 + |a(x)*(grad Uc)*(grad Uf)|^2-->0
-                    U_dot_U = tf.reduce_sum(tf.square(tf.multiply(UNN_Normal, alpha*UNN_Scale)), axis=-1)
-                    dU_dot_dU = tf.multiply(dUNN_Normal, alpha*dUNN_Scale)
-                    sum2dUdU = tf.reshape(tf.reduce_sum(dU_dot_dU, axis=-1), shape=[-1, 1])
-                    norm2AdUdU = tf.square(tf.multiply(a_eps, sum2dUdU))
-                    UNN_dot_UNN = tf.reduce_mean(norm2AdUdU) + tf.reduce_mean(U_dot_U)
+                UNN_dot_UNN = tf.constant(0.0)
             elif R['loss_type'] == 'variational_loss':
                 dUNN = tf.add(dUNN_Normal, alpha*dUNN_Scale)
                 if R['PDE_type'] == 'general_Laplace':
@@ -280,62 +263,43 @@ def solve_Multiscale_PDE(R):
 
                 Loss_it2NN = tf.reduce_mean(loss_it_NN)
 
-                if R['wavelet'] == 1:
-                    # |Uc*Uf|^2-->0 Uc 和 Uf 是两个列向量 形状为(*,1)
-                    norm2UdU = tf.reshape(tf.square(tf.multiply(UNN_Normal, alpha*UNN_Scale)), shape=[-1, 1])
-                    UNN_dot_UNN = tf.reduce_mean(norm2UdU)
-                elif R['wavelet'] == 2:
-                    # |a(x)*(grad Uc)*(grad Uf)|^2-->0 a(x) 是 (*,1)的；(grad Uc)*(grad Uf)是向量相乘(*,2)·(*,2)
-                    dU_dot_dU = tf.multiply(dUNN_Normal, alpha*dUNN_Scale)
-                    sum2dUdU = tf.reshape(tf.reduce_sum(dU_dot_dU, axis=-1), shape=[-1, 1])
-                    norm2AdUdU = tf.square(tf.multiply(a_eps, sum2dUdU))
-                    UNN_dot_UNN = tf.reduce_mean(norm2AdUdU)
-                else:  # |Uc*Uf|^2-->0 + |a(x)*(grad Uc)*(grad Uf)|^2-->0
-                    U_dot_U = tf.reshape(tf.square(tf.multiply(UNN_Normal, alpha*UNN_Scale)), shape=[-1, 1])
-                    dU_dot_dU = tf.multiply(dUNN_Normal, alpha*dUNN_Scale)
-                    sum2dUdU = tf.reshape(tf.reduce_sum(dU_dot_dU, axis=-1), shape=[-1, 1])
-                    norm2AdUdU = tf.square(tf.multiply(a_eps, sum2dUdU))
-                    UNN_dot_UNN = tf.reduce_mean(norm2AdUdU) + tf.reduce_mean(U_dot_U)
+                UNN_dot_UNN = tf.constant(0.0)
             elif R['loss_type'] == 'variational_loss2':
-                norm2dUNN_Normal = tf.reshape(tf.abs(dUNN_Normal), shape=[-1, 1])
-                norm2dUNN_Scale = tf.reshape(tf.abs(dUNN_Scale), shape=[-1, 1])
                 if R['PDE_type'] == 'general_Laplace':
-                    dUNN_pnorm = tf.square(norm2dUNN_Normal) + tf.square(norm2dUNN_Scale)
-                    loss_it_NN = 0.5 * dUNN_pnorm - tf.multiply(tf.reshape(f(X_it), shape=[-1, 1]), UNN)
+                    norm2dUNN_Normal = tf.reshape(tf.square(dUNN_Normal), shape=[-1, 1])
+                    norm2dUNN_Scale = tf.reshape(tf.square(dUNN_Scale), shape=[-1, 1])
+                    loss_it_NN = (1.0 / 2) * (norm2dUNN_Normal + alpha*alpha*norm2dUNN_Scale) - \
+                                 tf.multiply(tf.reshape(f(X_it), shape=[-1, 1]), UNN)
                 elif R['PDE_type'] == 'pLaplace':
-                    # a_eps = A_eps(X_it)                                                          # * 行 1 列
+                    # a_eps = A_eps(X_it)                          # * 行 1 列
                     a_eps = 1.0 / (2.0 + tf.cos(2.0 * np.pi * X_it / epsilon))
-                    AdUNN_pnorm = a_eps*tf.pow(norm2dUNN_Normal, p_index) + a_eps*tf.pow(alpha*norm2dUNN_Scale, p_index)
-                    loss_it_NN = (1.0 / p_index) * AdUNN_pnorm - tf.multiply(tf.reshape(f(X_it), shape=[-1, 1]), UNN)
+                    norm2dUNN_Normal = tf.reshape(tf.square(dUNN_Normal), shape=[-1, 1])
+                    norm2dUNN_Scale = tf.reshape(tf.square(dUNN_Scale), shape=[-1, 1])
+                    AdUNNnorm = a_eps*norm2dUNN_Normal + a_eps*alpha*alpha*norm2dUNN_Scale
+                    loss_it_NN = (1.0 / p_index) * AdUNNnorm - tf.multiply(tf.reshape(f(X_it), shape=[-1, 1]), UNN)
                 elif R['PDE_type'] == 'Possion_Boltzmann':
                     a_eps = A_eps(X_it)                          # * 行 1 列
                     # a_eps = 1.0 / (2.0 + tf.cos(2.0 * np.pi * X_it / epsilon))
                     Kappa = kappa(X_it)
-                    AdUNN_pnorm = a_eps * tf.pow(norm2dUNN_Normal, p_index) + a_eps * tf.pow(alpha * norm2dUNN_Scale,
-                                                                                             p_index)
-                    loss_it_NN = (1.0 / p_index) * (AdUNN_pnorm + Kappa*UNN*UNN) - \
+                    norm2dUNN_Normal = tf.reshape(tf.square(dUNN_Normal), shape=[-1, 1])
+                    norm2dUNN_Scale = tf.reshape(tf.square(dUNN_Scale), shape=[-1, 1])
+                    AdUNNnorm = a_eps * norm2dUNN_Normal + a_eps * alpha * alpha * norm2dUNN_Scale
+                    loss_it_NN = (1.0 / p_index) * (AdUNNnorm + Kappa*UNN*UNN) - \
                                            tf.multiply(tf.reshape(f(X_it), shape=[-1, 1]), UNN)
 
                 # Loss_it2NN = tf.reduce_mean(loss_it_NN)*(region_r-region_l)
                 Loss_it2NN = tf.reduce_mean(loss_it_NN)
 
-                if R['wavelet'] == 1:
-                    norm2UdU = tf.reshape(tf.square(tf.multiply(UNN_Normal, alpha*UNN_Scale)), shape=[-1, 1])
-                    UNN_dot_UNN = tf.reduce_mean(norm2UdU)
-                else:
-                    UNN_dot_UNN = tf.constant(0.0)
+                UNN_dot_UNN = tf.constant(0.0)
 
             Loss2UNN_dot_UNN = penalty2powU * UNN_dot_UNN
 
             U_left = tf.reshape(u_left(X_left_bd), shape=[-1, 1])
             U_right = tf.reshape(u_right(X_right_bd), shape=[-1, 1])
-            loss_bdSquare_Normal = tf.square(UNN_Left_Normal - U_left) + tf.square(UNN_Right_Normal - U_right)
-            loss_bdSquare_Scale= tf.square(alpha*UNN_Left_Scale) + tf.square(alpha*UNN_Right_Scale)
-            # loss_bdSquare_Scale = tf.square(UNN_Left_Scale) + tf.square(UNN_Right_Scale)
-
-            Loss_bd2Normal = bd_penalty * tf.reduce_mean(loss_bdSquare_Normal)
-            Loss_bd2Scale = bd_penalty * tf.reduce_mean(loss_bdSquare_Scale)
-            Loss_bds = Loss_bd2Normal + Loss_bd2Scale
+            UNN_Left = UNN_Left_Normal + alpha*UNN_Left_Scale
+            UNN_Right = UNN_Right_Normal + alpha*UNN_Right_Scale
+            Loss_bd2NN = tf.reduce_mean(tf.square(UNN_Left - U_left) + tf.square(UNN_Right - U_right))
+            Loss_bds = bd_penalty * Loss_bd2NN
 
             if R['regular_wb_model'] == 'L1':
                 regularSum2WB_Normal = DNN_base.regular_weights_biases_L1(Ws_Normal, Bs_Normal)  # 正则化权重和偏置 L1正则化
@@ -355,11 +319,11 @@ def solve_Multiscale_PDE(R):
             if R['loss_type'] == 'variational_loss':
                 if R['train_model'] == 'training_group2':
                     train_op1 = my_optimizer.minimize(Loss2NN, global_step=global_steps)
-                    train_op2 = my_optimizer.minimize(Loss_bds, global_step=global_steps)
+                    train_op2 = my_optimizer.minimize(Loss_bd2NN, global_step=global_steps)
                     train_Loss2NN = tf.group(train_op1, train_op2)
                 elif R['train_model'] == 'training_group3':
                     train_op1 = my_optimizer.minimize(Loss_it2NN, global_step=global_steps)
-                    train_op2 = my_optimizer.minimize(Loss_bds, global_step=global_steps)
+                    train_op2 = my_optimizer.minimize(Loss_bd2NN, global_step=global_steps)
                     train_op3 = my_optimizer.minimize(Loss2NN, global_step=global_steps)
                     train_Loss2NN = tf.group(train_op1, train_op2, train_op3)
                 elif R['train_model'] == 'training_union':
@@ -475,7 +439,7 @@ def solve_Multiscale_PDE(R):
                 temp_penalty_powU = init_penalty2powU
 
             _, loss_it_nn, loss_bd_nn, loss_nn, udu_nn, train_mse_nn, train_rel_nn, pwb = sess.run(
-                [train_Loss2NN, Loss_it2NN, Loss_bds, Loss2NN, UNN_dot_UNN, train_mse_NN, train_rel_NN, PWB],
+                [train_Loss2NN, Loss_it2NN, Loss_bd2NN, Loss2NN, UNN_dot_UNN, train_mse_NN, train_rel_NN, PWB],
                 feed_dict={X_it: x_it_batch, X_left_bd: xl_bd_batch, X_right_bd: xr_bd_batch,
                            in_learning_rate: tmp_lr, bd_penalty: temp_penalty_bd, penalty2powU: temp_penalty_powU})
             loss_it_all.append(loss_it_nn)
@@ -639,7 +603,8 @@ if __name__ == "__main__":
     elif R['activate_powSolus_increase'] == 2:
         R['balance2solus'] = 10000.0
     else:
-        R['balance2solus'] = 20.0
+        # R['balance2solus'] = 20.0
+        R['balance2solus'] = 25.0
         # R['balance2solus'] = 15.0
         # R['balance2solus'] = 10.0
 
@@ -801,15 +766,13 @@ if __name__ == "__main__":
     R['subfig_type'] = 0
 
     if R['loss_type'] == 'variational_loss' or R['loss_type'] == 'L2_loss':
-        R['balance2solus'] = 25.0
         # R['contrib2scale'] = 0.01
         R['contrib2scale'] = 0.05
         # R['contrib2scale'] = 0.1
     elif R['loss_type'] == 'variational_loss2':
-        R['balance2solus'] = 25.0
         # R['contrib2scale'] = 0.01
-        R['contrib2scale'] = 0.05
-        # R['contrib2scale'] = 0.1
+        # R['contrib2scale'] = 0.05
+        R['contrib2scale'] = 0.1
 
     # R['repeat_high_freq'] = True
     R['repeat_high_freq'] = False

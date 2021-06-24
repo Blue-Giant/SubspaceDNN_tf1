@@ -12,7 +12,7 @@ def loadMatlabIdata(filename=None):
     return data
 
 
-def get_meshData2Laplace(equation_name=None, mesh_number=2):
+def get_data2pLaplace(equation_name=None, mesh_number=2):
     if equation_name == 'multi_scale2D_1':
         test_meshXY_file = 'dataMat2pLaplace/E1/' + str('meshXY') + str(mesh_number) + str('.mat')
     elif equation_name == 'multi_scale2D_2':
@@ -29,26 +29,6 @@ def get_meshData2Laplace(equation_name=None, mesh_number=2):
     XY = mesh_XY['meshXY']
     test_xy_data = np.transpose(XY, (1, 0))
     return test_xy_data
-
-
-def get_randData2Laplace(dim=2, data_path=None):
-    if dim == 2:
-        testData_file = str(data_path) + '/' + str('testXY') + str('.mat')
-        testData = loadMatlabIdata(testData_file)
-        data2test = testData['XY']
-    elif dim == 3:
-        testData_file = str(data_path) + '/' + str('testXYZ') + str('.mat')
-        testData = loadMatlabIdata(testData_file)
-        data2test = testData['XYZ']
-    elif dim == 4:
-        testData_file = str(data_path) + '/' + str('testXYZS') + str('.mat')
-        testData = loadMatlabIdata(testData_file)
-        data2test = testData['XYZS']
-    elif dim == 5:
-        testData_file = str(data_path) + '/' + str('testXYZST') + str('.mat')
-        testData = loadMatlabIdata(testData_file)
-        data2test = testData['XYZST']
-    return data2test
 
 
 if __name__ == '__main__':

@@ -24,7 +24,11 @@ def get_meshData2Laplace(equation_name=None, mesh_number=2):
     elif equation_name == 'multi_scale2D_5':
         test_meshXY_file = 'dataMat2pLaplace/E5/' + str('meshXY') + str(mesh_number) + str('.mat')
     elif equation_name == 'multi_scale2D_6':
+        assert (mesh_number == 6)
         test_meshXY_file = 'dataMat2pLaplace/E6/' + str('meshXY') + str(mesh_number) + str('.mat')
+    elif equation_name == 'multi_scale2D_7':
+        assert(mesh_number == 6)
+        test_meshXY_file = 'dataMat2pLaplace/E7/' + str('meshXY') + str(mesh_number) + str('.mat')
     mesh_XY = loadMatlabIdata(test_meshXY_file)
     XY = mesh_XY['meshXY']
     test_xy_data = np.transpose(XY, (1, 0))

@@ -6,8 +6,6 @@
 
 import tensorflow as tf
 import numpy as np
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.training import moving_averages
 #
 # 用于最中执行batch normalization的函数
 # tf.nn.batch_normalization(
@@ -117,6 +115,17 @@ def s2relu(x):
     # return 1.25*tf.nn.relu(1-x)*tf.nn.relu(x)*tf.sin(2*np.pi*x)
 
 
+def sinAddcos(x):
+    return 0.5*(tf.sin(x) + tf.cos(x))
+    # return tf.sin(x) + tf.cos(x)
+
+
+def sinAddcos_sReLu(x):
+    # return tf.nn.relu(1-x)*tf.nn.relu(x)*(tf.sin(2*np.pi*x) + tf.cos(2*np.pi*x))
+    return tf.nn.relu(1 - x) * tf.nn.relu(x) * (tf.sin(2 * np.pi * x) + tf.cos(np.pi * x))
+    # return tf.sin(x) + tf.cos(x)
+
+
 def s3relu(x):
     # return 0.5*tf.nn.relu(1-x)*tf.nn.relu(1+x)*tf.sin(2*np.pi*x)
     # return 0.21*tf.nn.relu(1-x)*tf.nn.relu(1+x)*tf.sin(2*np.pi*x)
@@ -205,13 +214,13 @@ def phi(x):
            - tf.nn.relu(x-3)*tf.nn.relu(x-3)*tf.nn.relu(x-3)
 
 
-#  ------------------------------------------------  初始化权重和偏置 --------------------------------------------
+# ------------------------------------------------  初始化权重和偏置 --------------------------------------------
 # 生成DNN的权重和偏置
 # tf.random_normal(): 用于从服从指定正太分布的数值中取出随机数
 # tf.random_normal(shape,mean=0.0,stddev=1.0,dtype=tf.float32,seed=None,name=None)
 # hape: 输出张量的形状，必选.--- mean: 正态分布的均值，默认为0.----stddev: 正态分布的标准差，默认为1.0
 # dtype: 输出的类型，默认为tf.float32 ----seed: 随机数种子，是一个整数，当设置之后，每次生成的随机数都一样---name: 操作的名称
-def Initial_DNN2different_hidden(in_size, out_size, hidden_layers, Flag):
+def Generally_Init_NN(in_size, out_size, hidden_layers, Flag='flag'):
     n_hiddens = len(hidden_layers)
     Weights = []  # 权重列表，用于存储隐藏层的权重
     Biases = []  # 偏置列表，用于存储隐藏层的偏置
@@ -283,18 +292,7 @@ def normal_init(in_dim, out_dim, scale_coef=1.0, weight_name='weight'):
     return V
 
 
-# tf.zeros(
-#     shape,
-#     dtype=tf.float32,
-#     name=None
-# )
-# shape代表形状，也就是1纬的还是2纬的还是n纬的数组
-def zeros_init(in_dim, out_dim, weight_name='weight'):
-    V = tf.Variable(tf.zeros([in_dim, out_dim], dtype=tf.float32), dtype=tf.float32, name=weight_name)
-    return V
-
-
-def initialize_NN_xavier(in_size, out_size, hidden_layers, Flag):
+def Truncated_normal_init_NN(in_size, out_size, hidden_layers, Flag='flag'):
     with tf.variable_scope('WB_scope', reuse=tf.AUTO_REUSE):
         scale = 5.0
         n_hiddens = len(hidden_layers)
@@ -321,47 +319,7 @@ def initialize_NN_xavier(in_size, out_size, hidden_layers, Flag):
         return Weights, Biases
 
 
-def initialize_NN_random_normal(in_size, out_size, hidden_layers, Flag, varcoe=0.5):
-    with tf.variable_scope('WB_scope', reuse=tf.AUTO_REUSE):
-        n_hiddens = len(hidden_layers)
-        Weights = []  # 权重列表，用于存储隐藏层的权重
-        Biases = []  # 偏置列表，用于存储隐藏层的偏置
-        # 隐藏层：第一层的权重和偏置，对输入数据做变换
-        stddev_WB = (2.0 / (in_size + hidden_layers[0])) ** varcoe
-        W = tf.get_variable(name='W-transInput' + str(Flag), shape=(in_size, hidden_layers[0]),
-                            initializer=tf.random_normal_initializer(stddev=stddev_WB),
-                            dtype=tf.float32)
-        B = tf.get_variable(name='B-transInput' + str(Flag), shape=(1, hidden_layers[0]),
-                            initializer=tf.random_normal_initializer(stddev=stddev_WB),
-                            dtype=tf.float32)
-        Weights.append(W)
-        Biases.append(B)
-        for i_layer in range(0, n_hiddens - 1):
-            stddev_WB = (2.0 / (hidden_layers[i_layer] + hidden_layers[i_layer + 1])) ** varcoe
-            W = tf.get_variable(
-                name='W' + str(i_layer + 1) + str(Flag), shape=(hidden_layers[i_layer], hidden_layers[i_layer + 1]),
-                initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
-            B = tf.get_variable(
-                name='B' + str(i_layer + 1) + str(Flag), shape=(1, hidden_layers[i_layer + 1]),
-                initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
-            Weights.append(W)
-            Biases.append(B)
-
-        # 输出层：最后一层的权重和偏置。将最后的结果变换到输出维度
-        stddev_WB = (2.0 / (hidden_layers[-1] + out_size)) ** varcoe
-        W = tf.get_variable(
-            name='W-outTrans' + str(Flag), shape=(hidden_layers[-1], out_size),
-            initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
-        B = tf.get_variable(
-            name='B-outTrans' + str(Flag), shape=(1, out_size),
-            initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
-
-        Weights.append(W)
-        Biases.append(B)
-        return Weights, Biases
-
-
-def initialize_NN_random_normal2(in_size, out_size, hidden_layers, Flag, varcoe=0.5):
+def Xavier_init_NN(in_size, out_size, hidden_layers, Flag='flag', varcoe=0.5):
     with tf.variable_scope('WB_scope', reuse=tf.AUTO_REUSE):
         n_hiddens = len(hidden_layers)
         Weights = []  # 权重列表，用于存储隐藏层的权重
@@ -398,7 +356,7 @@ def initialize_NN_random_normal2(in_size, out_size, hidden_layers, Flag, varcoe=
         return Weights, Biases
 
 
-def initialize_NN_random_normal2_CS(in_size, out_size, hidden_layers, Flag, varcoe=0.5):
+def Xavier_init_NN_Fourier(in_size, out_size, hidden_layers, Flag='flag', varcoe=0.5):
     with tf.variable_scope('WB_scope', reuse=tf.AUTO_REUSE):
         n_hiddens = len(hidden_layers)
         Weights = []  # 权重列表，用于存储隐藏层的权重
@@ -467,7 +425,7 @@ def regular_weights_biases_L2(weights, biases):
 
 
 #  --------------------------------------------  网络模型 ------------------------------------------------------
-def PDE_DNN(variable_input, Weights, Biases, hiddens, activate_name=None):
+def DNN(variable_input, Weights, Biases, hiddens, activate_name=None):
     if str.lower(activate_name) == 'relu':
         DNN_activation = tf.nn.relu
     elif str.lower(activate_name) == 'leaky_relu':
@@ -529,7 +487,7 @@ def PDE_DNN(variable_input, Weights, Biases, hiddens, activate_name=None):
     return output
 
 
-def PDE_DNN_BN(variable_input, Weights, Biases, hiddens, activate_name=None, is_training=None):
+def DNN_BN(variable_input, Weights, Biases, hiddens, activate_name=None, is_training=None):
     if str.lower(activate_name) == 'relu':
         DNN_activation = tf.nn.relu
     elif str.lower(activate_name) == 'leaky_relu':
@@ -592,7 +550,7 @@ def PDE_DNN_BN(variable_input, Weights, Biases, hiddens, activate_name=None, is_
     return output
 
 
-def PDE_DNN_scale(variable_input, Weights, Biases, hiddens, freq_frag, activate_name=None):
+def DNN_scale(variable_input, Weights, Biases, hiddens, freq_frag, activate_name=None, repeat_Highfreq=True):
     if str.lower(activate_name) == 'relu':
         DNN_activation = tf.nn.relu
     elif str.lower(activate_name) == 'leaky_relu':
@@ -642,7 +600,10 @@ def PDE_DNN_scale(variable_input, Weights, Biases, hiddens, freq_frag, activate_
     mixcoe = np.repeat(freq_frag, Unit_num)
 
     # 这个的作用是什么？
-    mixcoe = np.concatenate((mixcoe, np.ones([hiddens[0] - Unit_num * len(freq_frag)]) * freq_frag[-1]))
+    if repeat_Highfreq==True:
+        mixcoe = np.concatenate((mixcoe, np.ones([hiddens[0] - Unit_num * len(freq_frag)]) * freq_frag[-1]))
+    else:
+        mixcoe = np.concatenate((np.ones([hiddens[0] - Unit_num * len(freq_frag)]) * freq_frag[0], mixcoe))
 
     mixcoe = mixcoe.astype(np.float32)
 
@@ -675,7 +636,7 @@ def PDE_DNN_scale(variable_input, Weights, Biases, hiddens, freq_frag, activate_
     return output
 
 
-def PDE_subDNNs_scale(variable_input, Wlists, Blists, hiddens, freq_frag, activate_name=None):
+def subDNNs_scale(variable_input, Wlists, Blists, hiddens, freq_frag, activate_name=None, repeat_Highfreq=True):
     if str.lower(activate_name) == 'relu':
         DNN_activation = tf.nn.relu
     elif str.lower(activate_name) == 'leaky_relu':
@@ -716,6 +677,8 @@ def PDE_subDNNs_scale(variable_input, Wlists, Blists, hiddens, freq_frag, activa
         DNN_activation = sm_mexican
     elif str.lower(activate_name) == 'phi':
         DNN_activation = phi
+    elif str.lower(activate_name) == 'scsrelu':
+        DNN_activation = sinAddcos_sReLu
 
     freqs_parts = []
     N2subnets = len(Wlists)
@@ -738,8 +701,12 @@ def PDE_subDNNs_scale(variable_input, Wlists, Blists, hiddens, freq_frag, activa
         mixcoe = np.repeat(freqs_parts[isubnet], len2unit)
 
         # 这个的作用是什么？
-        mixcoe = np.concatenate((mixcoe, np.ones([hiddens[0] - len2unit * len(freqs_parts[isubnet])]) *
+        if repeat_Highfreq == True:
+            mixcoe = np.concatenate((mixcoe, np.ones([hiddens[0] - len2unit * len(freqs_parts[isubnet])]) *
                                      (freqs_parts[isubnet])[-1]))
+        else:
+            mixcoe = np.concatenate((mixcoe, np.ones([hiddens[0] - len2unit * len(freqs_parts[isubnet])]) *
+                                     (freqs_parts[isubnet])[0]))
 
         mixcoe = mixcoe.astype(np.float32)
 
@@ -776,7 +743,7 @@ def PDE_subDNNs_scale(variable_input, Wlists, Blists, hiddens, freq_frag, activa
     return out
 
 
-def PDE_DNN_adapt_scale(variable_input, Weights, Biases, hiddens, freq_frag, activate_name=None):
+def DNN_adapt_scale(variable_input, Weights, Biases, hiddens, freq_frag, activate_name=None, repeat_Highfreq=True):
     if str.lower(activate_name) == 'relu':
         DNN_activation = tf.nn.relu
     elif str.lower(activate_name) == 'leaky_relu':
@@ -826,7 +793,10 @@ def PDE_DNN_adapt_scale(variable_input, Weights, Biases, hiddens, freq_frag, act
     init_mixcoe = np.repeat(freq_frag, Unit_num)
 
     # 这个的作用是什么？
-    init_mixcoe = np.concatenate((init_mixcoe, np.ones([hiddens[0] - Unit_num * len(freq_frag)]) * freq_frag[-1]))
+    if repeat_Highfreq==True:
+        init_mixcoe = np.concatenate((init_mixcoe, np.ones([hiddens[0] - Unit_num * len(freq_frag)]) * freq_frag[-1]))
+    else:
+        init_mixcoe = np.concatenate((init_mixcoe, np.ones([hiddens[0] - Unit_num * len(freq_frag)]) * freq_frag[0]))
 
     # 将 int 型的 mixcoe 转化为 发np.flost32 型的 mixcoe，mixcoe[: units[1]]省略了行的维度
     init_mixcoe = init_mixcoe.astype(np.float32)
@@ -863,7 +833,7 @@ def PDE_DNN_adapt_scale(variable_input, Weights, Biases, hiddens, freq_frag, act
     return output
 
 
-def PDE_subDNNs_adapt_scale(variable_input, Wlists, Blists, hiddens, freq_frag, activate_name=None):
+def subDNNs_adapt_scale(variable_input, Wlists, Blists, hiddens, freq_frag, activate_name=None, repeat_Highfreq=True):
     if str.lower(activate_name) == 'relu':
         DNN_activation = tf.nn.relu
     elif str.lower(activate_name) == 'leaky_relu':
@@ -963,7 +933,7 @@ def PDE_subDNNs_adapt_scale(variable_input, Wlists, Blists, hiddens, freq_frag, 
     return out
 
 
-def PDE_DNN_FourierBase(variable_input, Weights, Biases, hiddens, freq_frag, activate_name=None):
+def DNN_SinAddCos(variable_input, Weights, Biases, hiddens, freq_frag, activate_name=None, repeat_Highfreq=True):
     if str.lower(activate_name) == 'relu':
         DNN_activation = tf.nn.relu
     elif str.lower(activate_name) == 'leaky_relu':
@@ -1011,14 +981,18 @@ def PDE_DNN_FourierBase(variable_input, Weights, Biases, hiddens, freq_frag, act
     # 计算第一个隐藏单元和尺度标记的比例
     Unit_num = int(hiddens[0] / len(freq_frag))
 
+
     # 然后，频率标记按按照比例复制
     # np.repeat(a, repeats, axis=None)
     # 输入: a是数组,repeats是各个元素重复的次数(repeats一般是个标量,稍复杂点是个list),在axis的方向上进行重复
     # 返回: 如果不指定axis,则将重复后的结果展平(维度为1)后返回;如果指定axis,则不展平
     mixcoe = np.repeat(freq_frag, Unit_num)
 
-    # 如果第一个隐藏单元的长度大于复制后的频率标记，那就按照最大的频率在最后补齐
-    mixcoe = np.concatenate((mixcoe, np.ones([hiddens[0] - Unit_num * len(freq_frag)]) * freq_frag[-1]))
+    if repeat_Highfreq == True:
+        # 如果第一个隐藏单元的长度大于复制后的频率标记，那就按照最大的频率在最后补齐
+        mixcoe = np.concatenate((mixcoe, np.ones([hiddens[0] - Unit_num * len(freq_frag)]) * freq_frag[-1]))
+    else:
+        mixcoe = np.concatenate((mixcoe, np.ones([hiddens[0] - Unit_num * len(freq_frag)]) * freq_frag[0]))
 
     mixcoe = mixcoe.astype(np.float32)
 
@@ -1051,7 +1025,7 @@ def PDE_DNN_FourierBase(variable_input, Weights, Biases, hiddens, freq_frag, act
     return output
 
 
-def PDE_subDNNs_FourierBase(variable_input, Wlists, Blists, hiddens, freq_frag, activate_name=None):
+def subDNNs_SinAddCos(variable_input, Wlists, Blists, hiddens, freq_frag, activate_name=None, repeat_Highfreq=True):
     if str.lower(activate_name) == 'relu':
         DNN_activation = tf.nn.relu
     elif str.lower(activate_name) == 'leaky_relu':
@@ -1152,7 +1126,7 @@ def PDE_subDNNs_FourierBase(variable_input, Wlists, Blists, hiddens, freq_frag, 
     return out
 
 
-def PDE_DNN_Sine0rCosine_Base(variable_input, Weights, Biases, hiddens, freq_frag, activate_name=None):
+def DNN_Sine0rCos_Base(variable_input, Weights, Biases, hiddens, freq_frag, activate_name=None, repeat_Highfreq=True):
     if str.lower(activate_name) == 'relu':
         DNN_activation = tf.nn.relu
     elif str.lower(activate_name) == 'leaky_relu':
@@ -1206,8 +1180,11 @@ def PDE_DNN_Sine0rCosine_Base(variable_input, Weights, Biases, hiddens, freq_fra
     # 返回: 如果不指定axis,则将重复后的结果展平(维度为1)后返回;如果指定axis,则不展平
     mixcoe = np.repeat(freq_frag, Unit_num)
 
-    # 如果第一个隐藏单元的长度大于复制后的频率标记，那就按照最大的频率在最后补齐
-    mixcoe = np.concatenate((mixcoe, np.ones([hiddens[0] - Unit_num * len(freq_frag)]) * freq_frag[-1]))
+    if repeat_Highfreq == True:
+        # 如果第一个隐藏单元的长度大于复制后的频率标记，那就按照最大的频率在最后补齐
+        mixcoe = np.concatenate((mixcoe, np.ones([hiddens[0] - Unit_num * len(freq_frag)]) * freq_frag[-1]))
+    else:
+        mixcoe = np.concatenate((mixcoe, np.ones([hiddens[0] - Unit_num * len(freq_frag)]) * freq_frag[0]))
 
     mixcoe = mixcoe.astype(np.float32)
 
@@ -1242,8 +1219,8 @@ def PDE_DNN_Sine0rCosine_Base(variable_input, Weights, Biases, hiddens, freq_fra
     return output
 
 
-# Sin_C_Cos 代表 cos concatenate sin according to row（i.e. the number of sampling points）
-def PDE_DNN_Cos_C_Sin_Base(variable_input, Weights, Biases, hiddens, freq_frag, activate_name=None):
+# FourierBase 代表 cos concatenate sin according to row（i.e. the number of sampling points）
+def DNN_FourierBase(variable_input, Weights, Biases, hiddens, freq_frag, activate_name=None, repeat_Highfreq=True):
     if str.lower(activate_name) == 'relu':
         DNN_activation = tf.nn.relu
     elif str.lower(activate_name) == 'leaky_relu':
@@ -1284,6 +1261,10 @@ def PDE_DNN_Cos_C_Sin_Base(variable_input, Weights, Biases, hiddens, freq_frag, 
         DNN_activation = sm_mexican
     elif str.lower(activate_name) == 'phi':
         DNN_activation = phi
+    elif str.lower(activate_name) == 'sinaddcos':
+        DNN_activation = sinAddcos
+    elif str.lower(activate_name) == 'scsrelu':
+        DNN_activation = sinAddcos_sReLu
 
     layers = len(hiddens) + 1                   # 得到输入到输出的层数，即隐藏层层数
     H = variable_input                      # 代表输入数据，即输入层
@@ -1297,8 +1278,11 @@ def PDE_DNN_Cos_C_Sin_Base(variable_input, Weights, Biases, hiddens, freq_frag, 
     # 返回: 如果不指定axis,则将重复后的结果展平(维度为1)后返回;如果指定axis,则不展平
     mixcoe = np.repeat(freq_frag, Unit_num)
 
-    # 如果第一个隐藏单元的长度大于复制后的频率标记，那就按照最大的频率在最后补齐
-    mixcoe = np.concatenate((mixcoe, np.ones([hiddens[0] - Unit_num * len(freq_frag)]) * freq_frag[-1]))
+    if repeat_Highfreq == True:
+        # 如果第一个隐藏单元的长度大于复制后的频率标记，那就按照最大的频率在最后补齐
+        mixcoe = np.concatenate((mixcoe, np.ones([hiddens[0] - Unit_num * len(freq_frag)]) * freq_frag[-1]))
+    else:
+        mixcoe = np.concatenate((mixcoe, np.ones([hiddens[0] - Unit_num * len(freq_frag)]) * freq_frag[0]))
 
     mixcoe = mixcoe.astype(np.float32)
 
@@ -1310,16 +1294,18 @@ def PDE_DNN_Cos_C_Sin_Base(variable_input, Weights, Biases, hiddens, freq_frag, 
         # H = tf.add(tf.matmul(H, W_in)*mixcoe, B_in)
         H = tf.matmul(H, W_in) * mixcoe
 
-    if str.lower(activate_name) == 's2relu':
-        scale = 0.5
+    if str.lower(activate_name) == 'tanh':
+        sfactor = 1.0
+    elif str.lower(activate_name) == 's2relu':
+        sfactor = 0.5
+    elif str.lower(activate_name) == 'sinaddcos':
+        sfactor = 0.5
     else:
-        scale = 1.0
+        sfactor = 1.0
 
-    # H = tf.concat([tf.cos(H), tf.sin(H)], axis=1)
-    H = scale * (tf.concat([tf.cos(H), tf.sin(H)], axis=1))  # 这个效果好
-    # H = 0.75*(tf.concat([tf.cos(H), tf.sin(H)], axis=1))
-    # H = 0.5*(tf.concat([tf.cos(np.pi * H), tf.sin(np.pi * H)], axis=1))
-    # H = tf.concat([tf.cos(2 * np.pi * H), tf.sin(2 * np.pi * H)], axis=1)
+    H = sfactor * (tf.concat([tf.cos(H), tf.sin(H)], axis=1))  # sfactor=0.5 效果好
+    # H = sfactor * (tf.concat([tf.cos(np.pi * H), tf.sin(np.pi * H)], axis=1))
+    # H = sfactor * tf.concat([tf.cos(2 * np.pi * H), tf.sin(2 * np.pi * H)], axis=1)
 
     hiddens_record = hiddens[0]
     for k in range(layers-2):
@@ -1340,8 +1326,8 @@ def PDE_DNN_Cos_C_Sin_Base(variable_input, Weights, Biases, hiddens, freq_frag, 
     return output
 
 
-# Sin_C_Cos 代表 cos concatenate sin according to row（i.e. the number of sampling points）
-def DNN_adaptCosSin_Base(variable_input, Weights, Biases, hiddens, freq_frag, activate_name=None):
+def DNN_FourierBase2(variable_input, Weights, Biases, hiddens, freq_frag1, freq_frag2, activate_name=None,
+                     repeat_Highfreq=True):
     if str.lower(activate_name) == 'relu':
         DNN_activation = tf.nn.relu
     elif str.lower(activate_name) == 'leaky_relu':
@@ -1382,44 +1368,54 @@ def DNN_adaptCosSin_Base(variable_input, Weights, Biases, hiddens, freq_frag, ac
         DNN_activation = sm_mexican
     elif str.lower(activate_name) == 'phi':
         DNN_activation = phi
+    elif str.lower(activate_name) == 'sinaddcos':
+        DNN_activation = sinAddcos
 
     layers = len(hiddens) + 1                   # 得到输入到输出的层数，即隐藏层层数
     H = variable_input                      # 代表输入数据，即输入层
 
     # 计算第一个隐藏单元和尺度标记的比例
-    Unit_num = int(hiddens[0] / len(freq_frag))
+    Unit_num1 = int(hiddens[0] / len(freq_frag1))
+    Unit_num2 = int(int(2)*hiddens[0] / len(freq_frag2))
 
     # 然后，频率标记按按照比例复制
     # np.repeat(a, repeats, axis=None)
     # 输入: a是数组,repeats是各个元素重复的次数(repeats一般是个标量,稍复杂点是个list),在axis的方向上进行重复
     # 返回: 如果不指定axis,则将重复后的结果展平(维度为1)后返回;如果指定axis,则不展平
-    init_mixcoe = np.repeat(freq_frag, Unit_num)
+    mixcoe1 = np.repeat(freq_frag1, Unit_num1)
+    mixcoe2 = np.repeat(freq_frag2, Unit_num2)
 
-    # 如果第一个隐藏单元的长度大于复制后的频率标记，那就按照最大的频率在最后补齐
-    init_mixcoe = np.concatenate((init_mixcoe, np.ones([hiddens[0] - Unit_num * len(freq_frag)]) * freq_frag[-1]))
+    if repeat_Highfreq == True:
+        # 如果第一个隐藏单元的长度大于复制后的频率标记，那就按照最大的频率在最后补齐
+        mixcoe1 = np.concatenate((mixcoe1, np.ones([hiddens[0] - Unit_num1 * len(freq_frag1)]) * freq_frag1[-1]))
+        mixcoe2 = np.concatenate((mixcoe2, np.ones([int(2)*hiddens[0] - Unit_num2 * len(freq_frag2)]) * freq_frag2[-1]))
+    else:
+        mixcoe1 = np.concatenate((mixcoe1, np.ones([hiddens[0] - Unit_num1 * len(freq_frag1)]) * freq_frag1[0]))
+        mixcoe2 = np.concatenate((mixcoe2, np.ones([int(2)*hiddens[0] - Unit_num2 * len(freq_frag2)]) * freq_frag2[0]))
 
-    init_mixcoe = init_mixcoe.astype(np.float32)
-
-    mixcoe = tf.get_variable(name='M0', initializer=init_mixcoe)
+    mixcoe1 = mixcoe1.astype(np.float32)
+    mixcoe2 = mixcoe2.astype(np.float32)
 
     W_in = Weights[0]
     B_in = Biases[0]
-    if len(freq_frag) == 1:
+    if len(freq_frag1) == 1:
         H = tf.add(tf.matmul(H, W_in), B_in)
     else:
         # H = tf.add(tf.matmul(H, W_in)*mixcoe, B_in)
-        H = tf.matmul(H, W_in) * mixcoe
+        H = tf.matmul(H, W_in) * mixcoe1
 
-    if str.lower(activate_name) == 's2relu':
-        scale = 0.5
+    if str.lower(activate_name) == 'tanh':
+        sfactor =1.0
+    elif str.lower(activate_name) == 's2relu':
+        sfactor = 0.5
+    elif str.lower(activate_name) == 'sinaddcos':
+        sfactor = 0.5
     else:
-        scale = 1.0
+        sfactor = 1.0
 
-    # H = tf.concat([tf.cos(H), tf.sin(H)], axis=1)
-    H = scale * (tf.concat([tf.cos(H), tf.sin(H)], axis=1))  # 这个效果好
-    # H = 0.75*(tf.concat([tf.cos(H), tf.sin(H)], axis=1))
-    # H = 0.5*(tf.concat([tf.cos(np.pi * H), tf.sin(np.pi * H)], axis=1))
-    # H = tf.concat([tf.cos(2 * np.pi * H), tf.sin(2 * np.pi * H)], axis=1)
+    H = sfactor * (tf.concat([tf.cos(H), tf.sin(H)], axis=1))  # sfactor=0.5 效果好
+    # H = sfactor * (tf.concat([tf.cos(np.pi * H), tf.sin(np.pi * H)], axis=1))
+    # H = sfactor * tf.concat([tf.cos(2 * np.pi * H), tf.sin(2 * np.pi * H)], axis=1)
 
     hiddens_record = hiddens[0]
     for k in range(layers-2):
@@ -1427,7 +1423,12 @@ def DNN_adaptCosSin_Base(variable_input, Weights, Biases, hiddens, freq_frag, ac
         W = Weights[k+1]
         B = Biases[k+1]
         W_shape = W.get_shape().as_list()
-        H = DNN_activation(tf.add(tf.matmul(H, W), B))
+        if k == 0:
+            H = tf.add(tf.matmul(tf.multiply(H, mixcoe2), W), B)
+            # H = 0.5*(tf.sin(H) + tf.cos(H))
+            H = DNN_activation(H)
+        else:
+            H = DNN_activation(tf.add(tf.matmul(H, W), B))
         if (hiddens[k+1] == hiddens_record) and (W_shape[0] == hiddens_record):
             H = H + H_pre
         hiddens_record = hiddens[k+1]
@@ -1440,7 +1441,7 @@ def DNN_adaptCosSin_Base(variable_input, Weights, Biases, hiddens, freq_frag, ac
     return output
 
 
-def PDE_DNN_WaveletBase(variable_input, Weights, Biases, hiddens, scale_frag, activate_name=None):
+def DNN_WaveletBase(variable_input, Weights, Biases, hiddens, scale_frag, activate_name=None, repeat_Highfreq=True):
     if str.lower(activate_name) == 'relu':
         DNN_activation = tf.nn.relu
     elif str.lower(activate_name) == 'leaky_relu':

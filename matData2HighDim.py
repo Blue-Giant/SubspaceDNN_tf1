@@ -12,7 +12,7 @@ def loadMatlabIdata(filename=None):
     return data
 
 
-def get_randomData2Boltzmann(dim=2, data_path=None):
+def get_data2HighDim(dim=2, data_path=None):
     if dim == 2:
         testData_file = str(data_path) + '/' + str('testXY') + str('.mat')
         testData = loadMatlabIdata(testData_file)
@@ -32,12 +32,7 @@ def get_randomData2Boltzmann(dim=2, data_path=None):
     return data2test
 
 
-def get_meshData2Boltzmann(domain_lr='01', mesh_number=2):
-    if domain_lr == '01':
-        test_meshXY_file = 'dataMat2Boltz/meshData_01/' + str('meshXY') + str(mesh_number) + str('.mat')
-    elif domain_lr == '11':
-        test_meshXY_file = 'dataMat2Boltz/meshData_11/' + str('meshXY') + str(mesh_number) + str('.mat')
-    mesh_XY = loadMatlabIdata(test_meshXY_file)
-    XY = mesh_XY['meshXY']
-    test_xy_data = np.transpose(XY, (1, 0))
-    return test_xy_data
+if __name__ == '__main__':
+    mat_data_path = 'dataMat_highDim'
+    mat_data = get_data2Biharmonic(dim=2, data_path=mat_data_path)
+    print('shdshd')
