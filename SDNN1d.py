@@ -1,6 +1,7 @@
 """
-@author: LXA
- Date: 2020 年 5 月 31 日
+@author: Xi'an Li
+ Create Date: 2020.10.31
+ The last modification on 2021.10.15
 """
 import os
 import sys
@@ -18,92 +19,18 @@ import MS_BoltzmannEqs
 import General_Laplace
 import plotData
 import saveData
-
-
-# 记录字典中的一些设置
-def dictionary_out2file(R_dic, log_fileout, actName2normal=None, actName2scale=None):
-    DNN_tools.log_string('PDE type for problem: %s\n' % (R_dic['PDE_type']), log_fileout)
-    DNN_tools.log_string('Equation name for problem: %s\n' % (R_dic['equa_name']), log_fileout)
-    if R_dic['PDE_type'] == 'pLaplace' or R_dic['PDE_type'] == 'Possion_Boltzmann':
-        DNN_tools.log_string('The order to multiscale: %s\n' % (R_dic['order2pLaplace_operator']), log_fileout)
-        DNN_tools.log_string('The epsilon to multiscale: %s\n' % (R_dic['epsilon']), log_fileout)
-
-    DNN_tools.log_string('Network model of solving normal-part: %s\n' % str(R_dic['model2normal']), log_fileout)
-    DNN_tools.log_string('Network model of solving scale-part: %s\n' % str(R_dic['model2scale']), log_fileout)
-    DNN_tools.log_string('The contribution factor for scale submodule: %s\n' % str(R_dic['contrib2scale']), log_fileout)
-    DNN_tools.log_string('Activate function for normal-part network: %s\n' % str(actName2normal), log_fileout)
-    DNN_tools.log_string('Activate function for scale-part network: %s\n' % str(actName2scale), log_fileout)
-    DNN_tools.log_string('hidden layer to normal:%s\n' % str(R_dic['hidden2normal']), log_fileout)
-    DNN_tools.log_string('hidden layer to scale :%s\n' % str(R_dic['hidden2scale']), log_fileout)
-    DNN_tools.log_string('The frequency to scale-part network: %s\n' % (R_dic['freq2Scale']), log_fileout)
-
-    if R_dic['model2normal'] == 'DNN_FourierBase':
-        DNN_tools.log_string('The frequency to Normal-part network: %s\n' % (R_dic['freq2Normal']), log_fileout)
-        DNN_tools.log_string('Repeating high frequency component for Normal: %s\n' % (R_dic['repeat_high_freq']), log_fileout)
-
-    if (R_dic['optimizer_name']).title() == 'Adam':
-        DNN_tools.log_string('optimizer:%s\n' % str(R_dic['optimizer_name']), log_fileout)
-    else:
-        DNN_tools.log_string('optimizer:%s  with momentum=%f\n' % (R_dic['optimizer_name'], R_dic['momentum']),
-                             log_fileout)
-
-    if (R_dic['train_model']) == 'training_union':
-        DNN_tools.log_string('The model for training loss: %s\n' % 'total loss', log_fileout)
-    elif (R_dic['train_opt']) == 'training_group4':
-        DNN_tools.log_string('The model for training loss: %s\n' % 'total loss + loss_it + loss_bd + loss_U2U', log_fileout)
-    elif (R_dic['train_opt']) == 'training_group3':
-        DNN_tools.log_string('The model for training loss: %s\n' % 'total loss + loss_it + loss_bd', log_fileout)
-    elif (R_dic['train_opt']) == 'training_group2':
-        DNN_tools.log_string('The model for training loss: %s\n' % 'total loss + loss_U2U', log_fileout)
-
-    if R_dic['loss_type'] == 'variational_loss' or R_dic['loss_type'] == 'variational_loss2':
-        DNN_tools.log_string('Loss function: ' + str(R_dic['loss_type']) +'\n', log_fileout)
-    else:
-        DNN_tools.log_string('Loss function: L2 loss\n', log_fileout)
-
-    if R_dic['loss_type'] == 'variational_loss':
-        if R_dic['wavelet'] == 1:
-            DNN_tools.log_string('Option of loss for coarse and fine is: L2 wavelet. \n', log_fileout)
-        elif R_dic['wavelet'] == 2:
-            DNN_tools.log_string('Option of loss for coarse and fine is: Energy minimization. \n', log_fileout)
-        else:
-            DNN_tools.log_string('Option of loss for coarse and fine is: L2 wavelet + Energy minimization. \n',
-                                 log_fileout)
-
-    if R_dic['loss_type'] == 'variational_loss2':
-        if R_dic['wavelet'] == 1:
-            DNN_tools.log_string('Option of loss for coarse and fine is: L2 wavelet. \n', log_fileout)
-
-    if R_dic['activate_stop'] != 0:
-        DNN_tools.log_string('activate the stop_step and given_step= %s\n' % str(R_dic['max_epoch']), log_fileout)
-    else:
-        DNN_tools.log_string('no activate the stop_step and given_step = default: %s\n' % str(R_dic['max_epoch']),
-                             log_fileout)
-
-    DNN_tools.log_string('Init learning rate: %s\n' % str(R_dic['learning_rate']), log_fileout)
-
-    DNN_tools.log_string('Decay to learning rate: %s\n' % str(R_dic['learning_rate_decay']), log_fileout)
-
-    DNN_tools.log_string('Batch-size 2 interior: %s\n' % str(R_dic['batch_size2interior']), log_fileout)
-    DNN_tools.log_string('Batch-size 2 boundary: %s\n' % str(R_dic['batch_size2boundary']), log_fileout)
-
-    DNN_tools.log_string('Initial boundary penalty: %s\n' % str(R_dic['init_boundary_penalty']), log_fileout)
-    if R_dic['activate_penalty2bd_increase'] == 1:
-        DNN_tools.log_string('The penalty of boundary will increase with training going on.\n', log_fileout)
-    elif R_dic['activate_penalty2bd_increase'] == 2:
-        DNN_tools.log_string('The penalty of boundary will decrease with training going on.\n', log_fileout)
-    else:
-        DNN_tools.log_string('The penalty of boundary will keep unchanged with training going on.\n', log_fileout)
+import DNN_Print_Log
 
 
 def solve_Multiscale_PDE(R):
-    log_out_path = R['FolderName']  # 将路径从字典 R 中提取出来
+    log_out_path = R['FolderName']
     if not os.path.exists(log_out_path):  # 判断路径是否已经存在
-        os.mkdir(log_out_path)  # 无 log_out_path 路径，创建一个 log_out_path 路径
+        os.mkdir(log_out_path)            # 无 log_out_path 路径，创建一个 log_out_path 路径
 
     outfile_name1 = '%s%s.txt' % ('log2', 'train')
-    log_fileout_NN = open(os.path.join(log_out_path, outfile_name1), 'w')  # 在这个路径下创建并打开一个可写的 log_train.txt文件
-    dictionary_out2file(R, log_fileout_NN, actName2normal=R['act_name2Normal'], actName2scale=R['act_name2Scale'])
+    log_fileout = open(os.path.join(log_out_path, outfile_name1), 'w')  # 在这个路径下创建并打开一个可写的 log_train.txt文件
+    DNN_Print_Log.dictionary_out2file(R, log_fileout, actName2normal=R['act_name2Normal'],
+                                      actName2scale=R['act_name2Scale'])
 
     # laplace 问题需要的设置
     batchsize_it = R['batch_size2interior']
@@ -111,7 +38,7 @@ def solve_Multiscale_PDE(R):
     bd_penalty_init = R['init_boundary_penalty']         # Regularization parameter for boundary conditions
     lr_decay = R['learning_rate_decay']
     learning_rate = R['learning_rate']
-    init_penalty2powU = R['balance2solus']
+    init_UdotU_penalty = R['init_penalty2orthogonal']
     hidden2normal = R['hidden2normal']
     hidden2scale = R['hidden2scale']
     penalty2WB = R['penalty2weight_biases']         # Regularization parameter for weights and biases
@@ -120,8 +47,18 @@ def solve_Multiscale_PDE(R):
     input_dim = R['input_dim']
     out_dim = R['output_dim']
     alpha = R['contrib2scale']
-    act_func2Normal = R['act_name2Normal']
-    act_func2Scale = R['act_name2Scale']
+    act2Normal = R['act_name2Normal']
+    act2Scale = R['act_name2Scale']
+
+    if R['contrib_scale2orthogonal'] == 'with_contrib':
+        using_scale2orthogonal = R['contrib2scale']
+    else:
+        using_scale2orthogonal = 1.0
+
+    if R['opt2loss_bd'] != 'unified_boundary' and R['contrib_scale2boundary'] == 'with_contrib':
+        using_scale2boundary = R['contrib2scale']
+    else:
+        using_scale2boundary = 1.0
 
     region_l = 0.0
     region_r = 1.0
@@ -157,56 +94,64 @@ def solve_Multiscale_PDE(R):
 
     flag_normal = 'WB_Normal'
     flag_scale = 'WB_Scale'
-    if R['model2normal'] == 'DNN_FourierBase':
+    if R['model2Normal'] == 'Fourier_DNN':
         Ws_Normal, Bs_Normal = DNN_base.Xavier_init_NN_Fourier(input_dim, out_dim, hidden2normal, flag_normal)
     else:
         Ws_Normal, Bs_Normal = DNN_base.Xavier_init_NN(input_dim, out_dim, hidden2normal, flag_normal)
 
-    if R['model2scale'] == 'DNN_FourierBase':
+    if R['model2Scale'] == 'Fourier_DNN':
         Ws_Scale, Bs_Scale = DNN_base.Xavier_init_NN_Fourier(input_dim, out_dim, hidden2scale, flag_scale)
     else:
         Ws_Scale, Bs_Scale = DNN_base.Xavier_init_NN(input_dim, out_dim, hidden2scale, flag_scale)
 
-    global_steps = tf.Variable(0, trainable=False)
+    global_steps = tf.compat.v1.Variable(0, trainable=False)
     with tf.device('/gpu:%s' % (R['gpuNo'])):
-        with tf.variable_scope('vscope', reuse=tf.AUTO_REUSE):
-            X_it = tf.placeholder(tf.float32, name='X_it', shape=[None, input_dim])                # * 行 1 列
-            X_left_bd = tf.placeholder(tf.float32, name='X_left_bd', shape=[None, input_dim])      # * 行 1 列
-            X_right_bd = tf.placeholder(tf.float32, name='X_right_bd', shape=[None, input_dim])    # * 行 1 列
-            bd_penalty = tf.placeholder_with_default(input=1e3, shape=[], name='bd_p')
-            penalty2powU = tf.placeholder_with_default(input=1.0, shape=[], name='p_powU')
-            in_learning_rate = tf.placeholder_with_default(input=1e-5, shape=[], name='lr')
-            train_opt = tf.placeholder_with_default(input=True, shape=[], name='train_opt')
+        with tf.compat.v1.variable_scope('vscope', reuse=tf.compat.v1.AUTO_REUSE):
+            X_it = tf.compat.v1.placeholder(tf.float32, name='X_it', shape=[None, input_dim])                # * 行 1 列
+            X_left = tf.compat.v1.placeholder(tf.float32, name='X_left', shape=[None, input_dim])      # * 行 1 列
+            X_right = tf.compat.v1.placeholder(tf.float32, name='X_right', shape=[None, input_dim])    # * 行 1 列
+            bd_penalty = tf.compat.v1.placeholder_with_default(input=1e3, shape=[], name='bd_p')
+            UdotU_penalty = tf.compat.v1.placeholder_with_default(input=1.0, shape=[], name='p_powU')
+            in_learning_rate = tf.compat.v1.placeholder_with_default(input=1e-5, shape=[], name='lr')
 
-            if R['model2normal'] == 'DNN':
-                UNN_Normal = DNN_base.DNN(X_it, Ws_Normal, Bs_Normal, hidden2normal, activate_name=act_func2Normal)
-                UNN_Left_Normal = DNN_base.DNN(X_left_bd, Ws_Normal, Bs_Normal, hidden2normal, activate_name=act_func2Normal)
-                UNN_Right_Normal = DNN_base.DNN(X_right_bd, Ws_Normal, Bs_Normal, hidden2normal, activate_name=act_func2Normal)
-            elif R['model2normal'] == 'DNN_FourierBase':
+            if R['model2Normal'] == 'DNN':
+                UNN_Normal = DNN_base.DNN(X_it, Ws_Normal, Bs_Normal, hidden2normal, activateIn_name=act2Normal,
+                                          activate_name=act2Normal)
+                UNN_Left_Normal = DNN_base.DNN(X_left, Ws_Normal, Bs_Normal, hidden2normal, activateIn_name=act2Normal,
+                                               activate_name=act2Normal)
+                UNN_Right_Normal = DNN_base.DNN(X_right, Ws_Normal, Bs_Normal, hidden2normal, activateIn_name=act2Normal,
+                                                activate_name=act2Normal)
+            elif R['model2Normal'] == 'Fourier_DNN':
                 freq2Normal = R['freq2Normal']
-                UNN_Normal = DNN_base.DNN_FourierBase(X_it, Ws_Normal, Bs_Normal, hidden2normal, freq2Normal,
-                                                      activate_name=act_func2Normal,
-                                                      repeat_Highfreq=R['repeat_high_freq'])
-                UNN_Left_Normal = DNN_base.DNN_FourierBase(X_left_bd, Ws_Normal, Bs_Normal, hidden2normal, freq2Normal,
-                                                           activate_name=act_func2Normal,
-                                                           repeat_Highfreq=R['repeat_high_freq'])
-                UNN_Right_Normal = DNN_base.DNN_FourierBase(X_right_bd, Ws_Normal, Bs_Normal, hidden2normal, freq2Normal,
-                                                            activate_name=act_func2Normal,
-                                                            repeat_Highfreq=R['repeat_high_freq'])
+                UNN_Normal = DNN_base.DNN_FourierBase(X_it, Ws_Normal, Bs_Normal, hidden2normal, freq2Normal, 
+                                                      activate_name=act2Normal, repeat_Highfreq=False)
+                UNN_Left_Normal = DNN_base.DNN_FourierBase(X_left, Ws_Normal, Bs_Normal, hidden2normal, freq2Normal,
+                                                           activate_name=act2Normal, repeat_Highfreq=False)
+                UNN_Right_Normal = DNN_base.DNN_FourierBase(X_right, Ws_Normal, Bs_Normal, hidden2normal, freq2Normal,
+                                                            activate_name=act2Normal, repeat_Highfreq=False)
 
             freq2scale = R['freq2Scale']
-            if R['model2scale'] == 'DNN_scale':
-                UNN_Scale = DNN_base.DNN_scale(X_it, Ws_Scale, Bs_Scale, hidden2scale, freq2scale, activate_name=act_func2Scale)
-                UNN_Left_Scale = DNN_base.DNN_scale(X_left_bd, Ws_Scale, Bs_Scale, hidden2scale, freq2scale, activate_name=act_func2Scale)
-                UNN_Right_Scale = DNN_base.DNN_scale(X_right_bd, Ws_Scale, Bs_Scale, hidden2scale, freq2scale, activate_name=act_func2Scale)
-            elif R['model2scale'] == 'DNN_adapt_scale':
-                UNN_Scale = DNN_base.DNN_adapt_scale(X_it, Ws_Scale, Bs_Scale, hidden2scale, freq2scale, activate_name=act_func2Scale)
-                UNN_Left_Scale = DNN_base.DNN_adapt_scale(X_left_bd, Ws_Scale, Bs_Scale, hidden2scale, freq2scale, activate_name=act_func2Scale)
-                UNN_Right_Scale = DNN_base.DNN_adapt_scale(X_right_bd, Ws_Scale, Bs_Scale, hidden2scale, freq2scale, activate_name=act_func2Scale)
-            elif R['model2scale'] == 'DNN_FourierBase':
-                UNN_Scale = DNN_base.DNN_FourierBase(X_it, Ws_Scale, Bs_Scale, hidden2scale, freq2scale, activate_name=act_func2Scale)
-                UNN_Left_Scale = DNN_base.DNN_FourierBase(X_left_bd, Ws_Scale, Bs_Scale, hidden2scale, freq2scale, activate_name=act_func2Scale)
-                UNN_Right_Scale = DNN_base.DNN_FourierBase(X_right_bd, Ws_Scale, Bs_Scale, hidden2scale, freq2scale, activate_name=act_func2Scale)
+            if R['model2Scale'] == 'Scale_DNN':
+                UNN_Scale = DNN_base.DNN_scale(X_it, Ws_Scale, Bs_Scale, hidden2scale, freq2scale,
+                                               activateIn_name=act2Normal, activate_name=act2Scale)
+                UNN_Left_Scale = DNN_base.DNN_scale(X_left, Ws_Scale, Bs_Scale, hidden2scale, freq2scale,
+                                                    activateIn_name=act2Normal, activate_name=act2Scale)
+                UNN_Right_Scale = DNN_base.DNN_scale(X_right, Ws_Scale, Bs_Scale, hidden2scale, freq2scale,
+                                                     activateIn_name=act2Normal, activate_name=act2Scale)
+            elif R['model2Scale'] == 'Adapt_scale_DNN':
+                UNN_Scale = DNN_base.DNN_adapt_scale(X_it, Ws_Scale, Bs_Scale, hidden2scale, freq2scale,
+                                                     activateIn_name=act2Normal, activate_name=act2Scale)
+                UNN_Left_Scale = DNN_base.DNN_adapt_scale(X_left, Ws_Scale, Bs_Scale, hidden2scale, freq2scale,
+                                                          activateIn_name=act2Normal, activate_name=act2Scale)
+                UNN_Right_Scale = DNN_base.DNN_adapt_scale(X_right, Ws_Scale, Bs_Scale, hidden2scale, freq2scale,
+                                                           activateIn_name=act2Normal, activate_name=act2Scale)
+            elif R['model2Scale'] == 'Fourier_DNN':
+                UNN_Scale = DNN_base.DNN_FourierBase(X_it, Ws_Scale, Bs_Scale, hidden2scale, freq2scale, 
+                                                     activate_name=act2Scale)
+                UNN_Left_Scale = DNN_base.DNN_FourierBase(X_left, Ws_Scale, Bs_Scale, hidden2scale, freq2scale, 
+                                                          activate_name=act2Scale)
+                UNN_Right_Scale = DNN_base.DNN_FourierBase(X_right, Ws_Scale, Bs_Scale, hidden2scale, freq2scale, 
+                                                           activate_name=act2Scale)
 
             UNN = UNN_Normal + alpha*UNN_Scale
 
@@ -235,25 +180,6 @@ def solve_Multiscale_PDE(R):
                     loss_it_NN = tf.square(diff2dAdUNN)
 
                 Loss_it2NN = tf.reduce_mean(loss_it_NN)
-
-                if R['wavelet'] == 1:
-                    # |Uc*Uf|^2-->0 Uc 和 Uf 是两个列向量 形状为(*, 1)
-                    # norm2UdU = tf.square(tf.multiply(U_NN_Normal, UNN_Scale))
-                    norm2UdU = tf.reshape(tf.square(tf.multiply(UNN_Normal, alpha*UNN_Scale), shape=[-1, 1]))
-                    UNN_dot_UNN = tf.reduce_mean(norm2UdU)
-                elif R['wavelet'] == 2:
-                    # |a(x)*(grad Uc)*(grad Uf)|^2-->0 a(x) 是 (*,1)的；(grad Uc)*(grad Uf)是向量相乘(*,2)·(*,2)
-                    dU_dot_dU = tf.multiply(dUNN_Normal, alpha*dUNN_Scale)
-                    sum2dUdU = tf.reshape(tf.reduce_sum(dU_dot_dU, axis=-1), shape=[-1, 1])
-                    norm2AdUdU = tf.square(tf.multiply(a_eps, sum2dUdU))
-                    # norm2AdUdU = tf.square(sum2dUdU)
-                    UNN_dot_UNN = tf.reduce_mean(norm2AdUdU)
-                else:  # |Uc*Uf|^2-->0 + |a(x)*(grad Uc)*(grad Uf)|^2-->0
-                    U_dot_U = tf.reduce_sum(tf.square(tf.multiply(UNN_Normal, alpha*UNN_Scale)), axis=-1)
-                    dU_dot_dU = tf.multiply(dUNN_Normal, alpha*dUNN_Scale)
-                    sum2dUdU = tf.reshape(tf.reduce_sum(dU_dot_dU, axis=-1), shape=[-1, 1])
-                    norm2AdUdU = tf.square(tf.multiply(a_eps, sum2dUdU))
-                    UNN_dot_UNN = tf.reduce_mean(norm2AdUdU) + tf.reduce_mean(U_dot_U)
             elif R['loss_type'] == 'variational_loss':
                 dUNN = tf.add(dUNN_Normal, alpha*dUNN_Scale)
                 if R['PDE_type'] == 'general_Laplace':
@@ -279,23 +205,6 @@ def solve_Multiscale_PDE(R):
                                  tf.multiply(tf.reshape(f(X_it), shape=[-1, 1]), UNN)
 
                 Loss_it2NN = tf.reduce_mean(loss_it_NN)
-
-                if R['wavelet'] == 1:
-                    # |Uc*Uf|^2-->0 Uc 和 Uf 是两个列向量 形状为(*,1)
-                    norm2UdU = tf.reshape(tf.square(tf.multiply(UNN_Normal, alpha*UNN_Scale)), shape=[-1, 1])
-                    UNN_dot_UNN = tf.reduce_mean(norm2UdU)
-                elif R['wavelet'] == 2:
-                    # |a(x)*(grad Uc)*(grad Uf)|^2-->0 a(x) 是 (*,1)的；(grad Uc)*(grad Uf)是向量相乘(*,2)·(*,2)
-                    dU_dot_dU = tf.multiply(dUNN_Normal, alpha*dUNN_Scale)
-                    sum2dUdU = tf.reshape(tf.reduce_sum(dU_dot_dU, axis=-1), shape=[-1, 1])
-                    norm2AdUdU = tf.square(tf.multiply(a_eps, sum2dUdU))
-                    UNN_dot_UNN = tf.reduce_mean(norm2AdUdU)
-                else:  # |Uc*Uf|^2-->0 + |a(x)*(grad Uc)*(grad Uf)|^2-->0
-                    U_dot_U = tf.reshape(tf.square(tf.multiply(UNN_Normal, alpha*UNN_Scale)), shape=[-1, 1])
-                    dU_dot_dU = tf.multiply(dUNN_Normal, alpha*dUNN_Scale)
-                    sum2dUdU = tf.reshape(tf.reduce_sum(dU_dot_dU, axis=-1), shape=[-1, 1])
-                    norm2AdUdU = tf.square(tf.multiply(a_eps, sum2dUdU))
-                    UNN_dot_UNN = tf.reduce_mean(norm2AdUdU) + tf.reduce_mean(U_dot_U)
             elif R['loss_type'] == 'variational_loss2':
                 norm2dUNN_Normal = tf.reshape(tf.abs(dUNN_Normal), shape=[-1, 1])
                 norm2dUNN_Scale = tf.reshape(tf.abs(dUNN_Scale), shape=[-1, 1])
@@ -316,26 +225,43 @@ def solve_Multiscale_PDE(R):
                     loss_it_NN = (1.0 / p_index) * (AdUNN_pnorm + Kappa*UNN*UNN) - \
                                            tf.multiply(tf.reshape(f(X_it), shape=[-1, 1]), UNN)
 
-                # Loss_it2NN = tf.reduce_mean(loss_it_NN)*(region_r-region_l)
                 Loss_it2NN = tf.reduce_mean(loss_it_NN)
 
-                if R['wavelet'] == 1:
-                    norm2UdU = tf.reshape(tf.square(tf.multiply(UNN_Normal, alpha*UNN_Scale)), shape=[-1, 1])
-                    UNN_dot_UNN = tf.reduce_mean(norm2UdU)
-                else:
-                    UNN_dot_UNN = tf.constant(0.0)
+            if R['opt2orthogonal'] == 1:
+                # |Uc*Uf|^2-->0 Uc 和 Uf 是两个列向量 形状为(*, 1)
+                norm2UdU = tf.square(tf.multiply(UNN_Normal, using_scale2orthogonal*UNN_Scale))
+                UNN_dot_UNN = tf.reduce_mean(norm2UdU)
+            elif R['opt2orthogonal'] == 2:
+                # |a(x)*(grad Uc)*(grad Uf)|^2-->0 a(x) 是 (*,1)的；(grad Uc)*(grad Uf)是向量相乘(*,2)·(*,2)
+                dU_dot_dU = tf.multiply(dUNN_Normal, using_scale2orthogonal*dUNN_Scale)
+                sum2dUdU = tf.reshape(tf.reduce_sum(dU_dot_dU, axis=-1), shape=[-1, 1])
+                norm2AdUdU = tf.square(tf.multiply(a_eps, sum2dUdU))
+                # norm2AdUdU = tf.square(sum2dUdU)
+                UNN_dot_UNN = tf.reduce_mean(norm2AdUdU)
+            else:  # |Uc*Uf|^2-->0 + |a(x)*(grad Uc)*(grad Uf)|^2-->0
+                U_dot_U = tf.reduce_sum(tf.square(tf.multiply(UNN_Normal, using_scale2orthogonal*UNN_Scale)), axis=-1)
+                dU_dot_dU = tf.multiply(dUNN_Normal, using_scale2orthogonal*dUNN_Scale)
+                sum2dUdU = tf.reshape(tf.reduce_sum(dU_dot_dU, axis=-1), shape=[-1, 1])
+                norm2AdUdU = tf.square(tf.multiply(a_eps, sum2dUdU))
+                UNN_dot_UNN = tf.reduce_mean(norm2AdUdU) + tf.reduce_mean(U_dot_U)
 
-            Loss2UNN_dot_UNN = penalty2powU * UNN_dot_UNN
+            Loss2UNN_dot_UNN = UdotU_penalty * UNN_dot_UNN
 
-            U_left = tf.reshape(u_left(X_left_bd), shape=[-1, 1])
-            U_right = tf.reshape(u_right(X_right_bd), shape=[-1, 1])
-            loss_bdSquare_Normal = tf.square(UNN_Left_Normal - U_left) + tf.square(UNN_Right_Normal - U_right)
-            loss_bdSquare_Scale= tf.square(alpha*UNN_Left_Scale) + tf.square(alpha*UNN_Right_Scale)
-            # loss_bdSquare_Scale = tf.square(UNN_Left_Scale) + tf.square(UNN_Right_Scale)
+            U_left = tf.reshape(u_left(X_left), shape=[-1, 1])
+            U_right = tf.reshape(u_right(X_right), shape=[-1, 1])
+            if R['opt2loss_bd'] == 'unified_boundary':
+                UNN_left = UNN_Left_Normal + using_scale2boundary * UNN_Left_Scale
+                UNN_right = UNN_Right_Normal + using_scale2boundary * UNN_Right_Scale
+                Loss_bd2NN = tf.square(UNN_left - U_left) + tf.square(UNN_right - U_right)
+                Loss_bd2NNs = bd_penalty * Loss_bd2NN
+            else:
+                loss_bdSquare_Normal = tf.square(UNN_Left_Normal - U_left) + tf.square(UNN_Right_Normal - U_right)
+                loss_bdSquare_Scale= tf.square(using_scale2boundary*UNN_Left_Scale) + \
+                                     tf.square(using_scale2boundary*UNN_Right_Scale)
 
-            Loss_bd2Normal = bd_penalty * tf.reduce_mean(loss_bdSquare_Normal)
-            Loss_bd2Scale = bd_penalty * tf.reduce_mean(loss_bdSquare_Scale)
-            Loss_bds = Loss_bd2Normal + Loss_bd2Scale
+                Loss_bd2Normal = tf.reduce_mean(loss_bdSquare_Normal)
+                Loss_bd2Scale = tf.reduce_mean(loss_bdSquare_Scale)
+                Loss_bd2NNs = bd_penalty * (Loss_bd2Normal + Loss_bd2Scale)
 
             if R['regular_wb_model'] == 'L1':
                 regularSum2WB_Normal = DNN_base.regular_weights_biases_L1(Ws_Normal, Bs_Normal)  # 正则化权重和偏置 L1正则化
@@ -349,17 +275,17 @@ def solve_Multiscale_PDE(R):
 
             PWB = penalty2WB * (regularSum2WB_Normal + regularSum2WB_Scale)
 
-            Loss2NN = Loss_it2NN + Loss_bds + Loss2UNN_dot_UNN + PWB
+            Loss2NN = Loss_it2NN + Loss_bd2NNs + Loss2UNN_dot_UNN + PWB
 
             my_optimizer = tf.train.AdamOptimizer(in_learning_rate)
             if R['loss_type'] == 'variational_loss':
                 if R['train_model'] == 'training_group2':
                     train_op1 = my_optimizer.minimize(Loss2NN, global_step=global_steps)
-                    train_op2 = my_optimizer.minimize(Loss_bds, global_step=global_steps)
+                    train_op2 = my_optimizer.minimize(Loss_bd2NNs, global_step=global_steps)
                     train_Loss2NN = tf.group(train_op1, train_op2)
                 elif R['train_model'] == 'training_group3':
                     train_op1 = my_optimizer.minimize(Loss_it2NN, global_step=global_steps)
-                    train_op2 = my_optimizer.minimize(Loss_bds, global_step=global_steps)
+                    train_op2 = my_optimizer.minimize(Loss_bd2NNs, global_step=global_steps)
                     train_op3 = my_optimizer.minimize(Loss2NN, global_step=global_steps)
                     train_Loss2NN = tf.group(train_op1, train_op2, train_op3)
                 elif R['train_model'] == 'training_union':
@@ -371,18 +297,18 @@ def solve_Multiscale_PDE(R):
                     train_Loss2NN = tf.group(train_op3, train_op4)
                 elif R['train_model'] == 'training_group3':
                     train_op1 = my_optimizer.minimize(Loss_it2NN, global_step=global_steps)
-                    train_op2 = my_optimizer.minimize(Loss_bds, global_step=global_steps)
+                    train_op2 = my_optimizer.minimize(Loss_bd2NNs, global_step=global_steps)
                     train_op3 = my_optimizer.minimize(Loss2NN, global_step=global_steps)
                     train_Loss2NN = tf.group(train_op1, train_op2, train_op3)
                 elif R['train_model'] == 'training_group4':
                     train_op1 = my_optimizer.minimize(Loss_it2NN, global_step=global_steps)
-                    train_op2 = my_optimizer.minimize(Loss_bds, global_step=global_steps)
+                    train_op2 = my_optimizer.minimize(Loss_bd2NNs, global_step=global_steps)
                     train_op3 = my_optimizer.minimize(Loss2UNN_dot_UNN, global_step=global_steps)
                     train_op4 = my_optimizer.minimize(Loss2NN, global_step=global_steps)
                     train_Loss2NN = tf.group(train_op1, train_op2, train_op3, train_op4)
                 elif R['train_model'] == 'training_group4_1':
                     train_op1 = my_optimizer.minimize(Loss_it2NN, global_step=global_steps)
-                    train_op2 = my_optimizer.minimize(Loss_bds, global_step=global_steps)
+                    train_op2 = my_optimizer.minimize(Loss_bd2NNs, global_step=global_steps)
                     train_op3 = my_optimizer.minimize(Loss2UNN_dot_UNN, global_step=global_steps)
                     train_op4 = my_optimizer.minimize(Loss2NN, global_step=global_steps)
                     train_Loss2NN = tf.group(train_op1, train_op2, train_op3, train_op4)
@@ -405,10 +331,10 @@ def solve_Multiscale_PDE(R):
     saveData.save_testData_or_solus2mat(test_x_bach, dataName='testx', outPath=R['FolderName'])
 
     # ConfigProto 加上allow_soft_placement=True就可以使用 gpu 了
-    config = tf.ConfigProto(allow_soft_placement=True)  # 创建sess的时候对sess进行参数配置
+    config = tf.compat.v1.ConfigProto(allow_soft_placement=True)  # 创建sess的时候对sess进行参数配置
     config.gpu_options.allow_growth = True              # True是让TensorFlow在运行过程中动态申请显存，避免过多的显存占用。
     config.allow_soft_placement = True                  # 当指定的设备不存在时，允许选择一个存在的设备运行。比如gpu不存在，自动降到cpu上运行
-    with tf.Session(config=config) as sess:
+    with tf.compat.v1.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
         tmp_lr = learning_rate
 
@@ -429,55 +355,29 @@ def solve_Multiscale_PDE(R):
                     temp_penalty_bd = 200 * bd_penalty_init
                 else:
                     temp_penalty_bd = 500 * bd_penalty_init
-            elif R['activate_penalty2bd_increase'] == 2:
-                if i_epoch < int(R['max_epoch'] / 10):
-                    temp_penalty_bd = 5*bd_penalty_init
-                elif i_epoch < int(R['max_epoch'] / 5):
-                    temp_penalty_bd = 1 * bd_penalty_init
-                elif i_epoch < int(R['max_epoch'] / 4):
-                    temp_penalty_bd = 0.5 * bd_penalty_init
-                elif i_epoch < int(R['max_epoch'] / 2):
-                    temp_penalty_bd = 0.1 * bd_penalty_init
-                elif i_epoch < int(3 * R['max_epoch'] / 4):
-                    temp_penalty_bd = 0.05 * bd_penalty_init
-                else:
-                    temp_penalty_bd = 0.02 * bd_penalty_init
             else:
                 temp_penalty_bd = bd_penalty_init
 
             if R['activate_powSolus_increase'] == 1:
                 if i_epoch < int(R['max_epoch'] / 10):
-                    temp_penalty_powU = init_penalty2powU
+                    temp_penalty_powU = init_UdotU_penalty
                 elif i_epoch < int(R['max_epoch'] / 5):
-                    temp_penalty_powU = 10* init_penalty2powU
+                    temp_penalty_powU = 10* init_UdotU_penalty
                 elif i_epoch < int(R['max_epoch'] / 4):
-                    temp_penalty_powU = 50*init_penalty2powU
+                    temp_penalty_powU = 50*init_UdotU_penalty
                 elif i_epoch < int(R['max_epoch'] / 2):
-                    temp_penalty_powU = 100*init_penalty2powU
+                    temp_penalty_powU = 100*init_UdotU_penalty
                 elif i_epoch < int(3 * R['max_epoch'] / 4):
-                    temp_penalty_powU = 200*init_penalty2powU
+                    temp_penalty_powU = 200*init_UdotU_penalty
                 else:
-                    temp_penalty_powU = 500*init_penalty2powU
-            elif R['activate_powSolus_increase'] == 2:
-                if i_epoch < int(R['max_epoch'] / 10):
-                    temp_penalty_powU = 5 * init_penalty2powU
-                elif i_epoch < int(R['max_epoch'] / 5):
-                    temp_penalty_powU = 1 * init_penalty2powU
-                elif i_epoch < int(R['max_epoch'] / 4):
-                    temp_penalty_powU = 0.5 * init_penalty2powU
-                elif i_epoch < int(R['max_epoch'] / 2):
-                    temp_penalty_powU = 0.1 * init_penalty2powU
-                elif i_epoch < int(3 * R['max_epoch'] / 4):
-                    temp_penalty_powU = 0.05 * init_penalty2powU
-                else:
-                    temp_penalty_powU = 0.02 * init_penalty2powU
+                    temp_penalty_powU = 500*init_UdotU_penalty
             else:
-                temp_penalty_powU = init_penalty2powU
+                temp_penalty_powU = init_UdotU_penalty
 
             _, loss_it_nn, loss_bd_nn, loss_nn, udu_nn, train_mse_nn, train_rel_nn, pwb = sess.run(
-                [train_Loss2NN, Loss_it2NN, Loss_bds, Loss2NN, UNN_dot_UNN, train_mse_NN, train_rel_NN, PWB],
-                feed_dict={X_it: x_it_batch, X_left_bd: xl_bd_batch, X_right_bd: xr_bd_batch,
-                           in_learning_rate: tmp_lr, bd_penalty: temp_penalty_bd, penalty2powU: temp_penalty_powU})
+                [train_Loss2NN, Loss_it2NN, Loss_bd2NNs, Loss2NN, UNN_dot_UNN, train_mse_NN, train_rel_NN, PWB],
+                feed_dict={X_it: x_it_batch, X_left: xl_bd_batch, X_right: xr_bd_batch, in_learning_rate: tmp_lr,
+                           bd_penalty: temp_penalty_bd, UdotU_penalty: temp_penalty_powU})
             loss_it_all.append(loss_it_nn)
             loss_bd_all.append(loss_bd_nn)
             loss_all.append(loss_nn)
@@ -489,43 +389,42 @@ def solve_Multiscale_PDE(R):
                 run_times = time.time() - t0
                 DNN_tools.print_and_log_train_one_epoch(
                     i_epoch, run_times, tmp_lr, temp_penalty_bd, temp_penalty_powU, pwb, loss_it_nn, loss_bd_nn, loss_nn,
-                    udu_nn, train_mse_nn, train_rel_nn, log_out=log_fileout_NN)
+                    udu_nn, train_mse_nn, train_rel_nn, log_out=log_fileout)
 
                 # ---------------------------   test network ----------------------------------------------
                 test_epoch.append(i_epoch / 1000)
-                train_option = False
                 u_true2test, utest_nn, unn_normal, unn_scale = sess.run(
-                    [U_true, UNN, UNN_Normal, alpha*UNN_Scale], feed_dict={X_it: test_x_bach, train_opt: train_option})
+                    [U_true, UNN, UNN_Normal, alpha*UNN_Scale], feed_dict={X_it: test_x_bach})
                 test_mse2nn = np.mean(np.square(u_true2test - utest_nn))
                 test_mse_all.append(test_mse2nn)
                 test_rel2nn = test_mse2nn / np.mean(np.square(u_true2test))
                 test_rel_all.append(test_rel2nn)
 
-                DNN_tools.print_and_log_test_one_epoch(test_mse2nn, test_rel2nn, log_out=log_fileout_NN)
+                DNN_tools.print_and_log_test_one_epoch(test_mse2nn, test_rel2nn, log_out=log_fileout)
 
-        # -----------------------  save training results to mat files, then plot them ---------------------------------
-        saveData.save_trainLoss2mat_1actFunc(loss_it_all, loss_bd_all, loss_all, actName=act_func2Normal,
-                                             outPath=R['FolderName'])
+    # -----------------------  save training results to mat files, then plot them ---------------------------------
+    saveData.save_trainLoss2mat_1actFunc(loss_it_all, loss_bd_all, loss_all, actName=act2Normal,
+                                         outPath=R['FolderName'])
 
-        saveData.save_train_MSE_REL2mat(train_mse_all, train_rel_all, actName=act_func2Normal, outPath=R['FolderName'])
+    saveData.save_train_MSE_REL2mat(train_mse_all, train_rel_all, actName=act2Normal, outPath=R['FolderName'])
 
-        plotData.plotTrain_loss_1act_func(loss_it_all, lossType='loss_it', seedNo=R['seed'], outPath=R['FolderName'])
-        plotData.plotTrain_loss_1act_func(loss_bd_all, lossType='loss_bd', seedNo=R['seed'], outPath=R['FolderName'],
-                                          yaxis_scale=True)
-        plotData.plotTrain_loss_1act_func(loss_all, lossType='loss', seedNo=R['seed'], outPath=R['FolderName'])
+    plotData.plotTrain_loss_1act_func(loss_it_all, lossType='loss_it', seedNo=R['seed'], outPath=R['FolderName'])
+    plotData.plotTrain_loss_1act_func(loss_bd_all, lossType='loss_bd', seedNo=R['seed'], outPath=R['FolderName'],
+                                      yaxis_scale=True)
+    plotData.plotTrain_loss_1act_func(loss_all, lossType='loss', seedNo=R['seed'], outPath=R['FolderName'])
 
-        plotData.plotTrain_MSE_REL_1act_func(train_mse_all, train_rel_all, actName=act_func2Scale, seedNo=R['seed'],
-                                             outPath=R['FolderName'], yaxis_scale=True)
+    plotData.plotTrain_MSE_REL_1act_func(train_mse_all, train_rel_all, actName=act2Scale, seedNo=R['seed'],
+                                         outPath=R['FolderName'], yaxis_scale=True)
 
-        # ----------------------  save testing results to mat files, then plot them --------------------------------
-        saveData.save_testData_or_solus2mat(u_true2test, dataName='Utrue', outPath=R['FolderName'])
-        saveData.save_testData_or_solus2mat(utest_nn, dataName=act_func2Normal, outPath=R['FolderName'])
-        saveData.save_testData_or_solus2mat(unn_normal, dataName='normal', outPath=R['FolderName'])
-        saveData.save_testData_or_solus2mat(unn_scale, dataName='scale', outPath=R['FolderName'])
+    # ----------------------  save testing results to mat files, then plot them --------------------------------
+    saveData.save_testData_or_solus2mat(u_true2test, dataName='Utrue', outPath=R['FolderName'])
+    saveData.save_testData_or_solus2mat(utest_nn, dataName=act2Normal, outPath=R['FolderName'])
+    saveData.save_testData_or_solus2mat(unn_normal, dataName='normal', outPath=R['FolderName'])
+    saveData.save_testData_or_solus2mat(unn_scale, dataName='scale', outPath=R['FolderName'])
 
-        saveData.save_testMSE_REL2mat(test_mse_all, test_rel_all, actName=act_func2Scale, outPath=R['FolderName'])
-        plotData.plotTest_MSE_REL(test_mse_all, test_rel_all, test_epoch, actName=act_func2Scale, seedNo=R['seed'],
-                                  outPath=R['FolderName'], yaxis_scale=True)
+    saveData.save_testMSE_REL2mat(test_mse_all, test_rel_all, actName=act2Scale, outPath=R['FolderName'])
+    plotData.plotTest_MSE_REL(test_mse_all, test_rel_all, test_epoch, actName=act2Scale, seedNo=R['seed'],
+                              outPath=R['FolderName'], yaxis_scale=True)
 
 
 if __name__ == "__main__":
@@ -613,11 +512,12 @@ if __name__ == "__main__":
     R['input_dim'] = 1                           # 输入维数，即问题的维数(几元问题)
     R['output_dim'] = 1                          # 输出维数
     R['loss_type'] = 'variational_loss'          # PDE变分
-    # R['loss_type'] = 'variational_loss2'         # PDE变分
+    # R['loss_type'] = 'variational_loss2'       # PDE变分
     # R['loss_type'] = 'L2_loss'                 # L2 loss
-    # R['wavelet'] = 0                           # 0: L2 wavelet+energy    1: wavelet    2:energy
-    R['wavelet'] = 1                             # 0: L2 wavelet+energy    1: wavelet    2:energy
-    # R['wavelet'] = 2                           # 0: L2 wavelet+energy    1: wavelet    2:energy
+
+    # R['opt2orthogonal'] = 0                    # 0: L2-orthogonal+energy    1: L2-orthogonal    2:energy
+    R['opt2orthogonal'] = 1  # 0: L2-orthogonal+energy    1: L2-orthogonal    2:energy
+    # R['opt2orthogonal'] = 2                    # 0: L2-orthogonal+energy    1: L2-orthogonal    2:energy
 
     # ---------------------------- Setup of DNN -------------------------------
     R['batch_size2interior'] = 3000              # 内部训练数据的批大小
@@ -635,13 +535,13 @@ if __name__ == "__main__":
 
     R['activate_powSolus_increase'] = 0
     if R['activate_powSolus_increase'] == 1:
-        R['balance2solus'] = 5.0
+        R['init_penalty2orthogonal'] = 5.0
     elif R['activate_powSolus_increase'] == 2:
-        R['balance2solus'] = 10000.0
+        R['init_penalty2orthogonal'] = 10000.0
     else:
-        R['balance2solus'] = 20.0
-        # R['balance2solus'] = 15.0
-        # R['balance2solus'] = 10.0
+        R['init_penalty2orthogonal'] = 20.0
+        # R['init_penalty2orthogonal'] = 15.0
+        # R['init_penalty2orthogonal'] = 10.0
 
     R['learning_rate'] = 2e-4                     # 学习率
     R['learning_rate_decay'] = 5e-5               # 学习率 decay
@@ -652,58 +552,33 @@ if __name__ == "__main__":
     # R['train_model'] = 'training_group3'
     # R['train_model'] = 'training_group4'
 
-    # R['model2normal'] = 'DNN'                     # 使用的网络模型
-    # R['model2normal'] = 'DNN_scale'
-    # R['model2normal'] = 'DNN_adapt_scale'
-    # R['model2normal'] = 'DNN_Sin+Cos_Base'
-    R['model2normal'] = 'DNN_FourierBase'
+    # R['model2Normal'] = 'DNN'                     # 使用的网络模型
+    # R['model2Normal'] = 'Scale_DNN'
+    # R['model2Normal'] = 'Adapt_scale_DNN'
+    R['model2Normal'] = 'Fourier_DNN'
 
-    # R['model2scale'] = 'DNN'                    # 使用的网络模型
-    # R['model2scale'] = 'DNN_scale'
-    # R['model2scale'] = 'DNN_adapt_scale'
-    # R['model2scale'] = 'DNN_Sin+Cos_Base'
-    R['model2scale'] = 'DNN_FourierBase'
+    # R['model2Scale'] = 'DNN'                    # 使用的网络模型
+    # R['model2Scale'] = 'Scale_DNN'
+    # R['model2Scale'] = 'Adapt_scale_DNN'
+    R['model2Scale'] = 'Fourier_DNN'
 
-    # eps = 0.1 and p=2
-    # 单纯的 MscaleDNN 网络规模 FourierBase (100, 100, 80, 80, 60) = 39360
-    # 单纯的 MscaleDNN 网络规模 GeneralBase (200, 100, 80, 80, 60) = 39460
-    # FourierBase normal 和 FourierBase scale 网络的总参数数目:16840 + 22350 = 39190
-    # FourierBase normal 和 FourierBase scale 网络的总参数数目:18090 + 21250 = 39340
-    # GeneralBase normal 和 FourierBase scale 网络的总参数数目:18140 + 21250 = 39390
-
-    # eps = 0.01 and p=2
+    # eps = 0.1 or 0.01 when p=2
     # 单纯的 MscaleDNN 网络规模 FourierBase (125, 100, 80, 80, 60) = 44385
     # 单纯的 MscaleDNN 网络规模 GeneralBase (250, 100, 80, 80, 60) = 44510
     # FourierBase normal 和 FourierBase scale 网络的总参数数目:18890 + 25375 = 44265
     # GeneralBase normal 和 FourierBase scale 网络的总参数数目:18940 + 25375 = 44315
 
-    # eps = 0.1 and p=5
-    # 单纯的 MscaleDNN 网络规模 FourierBase (100, 120, 80, 80, 80)-->1*100+200*120+120*80+80*80+80*80+80*1= 46580
-    # 单纯的 MscaleDNN 网络规模 GeneralBase (200, 120, 80, 80, 80)-->1*200+200*120+120*80+80*80+80*80+80*1= 46680
-    # FourierBase normal 和 FourierBase scale 网络的总参数数目:18090 + 28160 = 46250
-    # GeneralBase normal 和 FourierBase scale 网络的总参数数目:18140 + 28260 = 46400
-
-    # eps = 0.01 and p=5
+    # eps = 0.1 or 0.01 when p=5
     # 单纯的 MscaleDNN 网络规模 FourierBase (125, 120, 80, 80, 80)-->1*125+250*120+120*80+80*80+80*80+80*1= 52605
     # 单纯的 MscaleDNN 网络规模 GeneralBase (250, 120, 80, 80, 80)-->1*250+250*120+120*80+80*80+80*80+80*1= 52630
     # FourierBase normal 和 FourierBase scale 网络的总参数数目:18890 + 33585 = 52475
     # GeneralBase normal 和 FourierBase scale 网络的总参数数目:18940 + 33710 = 52650
 
-    # eps = 0.1 and p=8
-    # 单纯的 MscaleDNN 网络规模 FourierBase (100, 100, 80, 80, 60) = 39360
-    # 单纯的 MscaleDNN 网络规模 GeneralBase (200, 100, 80, 80, 60) = 39460
-    # FourierBase normal 和 FourierBase scale 网络的总参数数目:18090 + 21250 = 39340
-    # GeneralBase normal 和 FourierBase scale 网络的总参数数目:18140 + 21250 = 39390
-
-    # eps = 0.01 and p=8
-    # 单纯的 MscaleDNN 网络规模 FourierBase (125, 100, 80, 80, 60) = 44385
-    # 单纯的 MscaleDNN 网络规模 GeneralBase (250, 100, 80, 80, 60) = 44510
-    # FourierBase normal 和 FourierBase scale 网络的总参数数目:18890 + 25375 = 44265
-    # GeneralBase normal 和 FourierBase scale 网络的总参数数目:18940 + 25375 = 44315
-    if R['model2normal'] == 'DNN_FourierBase':
+    if R['model2Normal'] == 'Fourier_DNN':
         if R['epsilon'] == 0.1 and R['order2pLaplace_operator'] == 2:
             # R['hidden2normal'] = (40, 80, 60, 60, 40)                  # 1*40+80*80+80*60+60*60+60*40+40*1 = 16840
-            R['hidden2normal'] = (50, 75, 60, 60, 40)                  # 1*50+100*75+75*60+60*60+60*40+40*1 = 18090
+            # R['hidden2normal'] = (50, 75, 60, 60, 40)                  # 1*50+100*75+75*60+60*60+60*40+40*1 = 18090
+            R['hidden2normal'] = (50, 80, 60, 60, 40)  # 1*50+100*80+80*60+60*60+60*40+40*1 = 18890
         elif R['epsilon'] == 0.01 and R['order2pLaplace_operator'] == 2:
             R['hidden2normal'] = (50, 80, 60, 60, 40)                  # 1*50+100*80+80*60+60*60+60*40+40*1 = 18890
         elif R['epsilon'] == 0.1 and R['order2pLaplace_operator'] == 5:
@@ -717,7 +592,8 @@ if __name__ == "__main__":
     else:
         if R['epsilon'] == 0.1 and R['order2pLaplace_operator'] == 2:
             # R['hidden2normal'] = (80, 80, 60, 60, 40)                 # 1*80+80*80+80*60+60*60+60*40+40*1 = 16880
-            R['hidden2normal'] = (100, 75, 60, 60, 40)                # 1*100+100*75+75*60+60*60+60*40+40*1 = 18140
+            # R['hidden2normal'] = (100, 75, 60, 60, 40)                # 1*100+100*75+75*60+60*60+60*40+40*1 = 18140
+            R['hidden2normal'] = (100, 80, 60, 60, 40)  # 1*100+100*80+80*60+60*60+60*40+40*1 = 18940
         elif R['epsilon'] == 0.01 and R['order2pLaplace_operator'] == 2:
             R['hidden2normal'] = (100, 80, 60, 60, 40)                 # 1*100+100*80+80*60+60*60+60*40+40*1 = 18940
         elif R['epsilon'] == 0.1 and R['order2pLaplace_operator'] == 5:
@@ -729,10 +605,11 @@ if __name__ == "__main__":
         elif R['epsilon'] == 0.01 and R['order2pLaplace_operator'] == 8:
             R['hidden2normal'] = (100, 80, 60, 60, 40)                 # 1*100+100*80+80*60+60*60+60*40+40*1 = 18940
 
-    if R['model2scale'] == 'DNN_FourierBase':
+    if R['model2Scale'] == 'Fourier_DNN':
         if R['order2pLaplace_operator'] == 2 and R['epsilon'] == 0.1:
             # R['hidden2scale'] = (100, 60, 60, 60, 50)                    # 1*100+200*60+60*60+60*60+60*50+50*1= 22350
-            R['hidden2scale'] = (100, 60, 60, 50, 50)                    # 1*100+200*60+60*60+60*50+50*50+50*1=21250
+            # R['hidden2scale'] = (100, 60, 60, 50, 50)                    # 1*100+200*60+60*60+60*50+50*50+50*1=21250
+            R['hidden2scale'] = (125, 60, 60, 60, 50)  # 1*125+250*60+60*60+60*60+60*50+50*1=25375
         elif R['order2pLaplace_operator'] == 2 and R['epsilon'] == 0.01:
             R['hidden2scale'] = (125, 60, 60, 60, 50)                    # 1*125+250*60+60*60+60*60+60*50+50*1=25375
         elif R['order2pLaplace_operator'] == 5 and R['epsilon'] == 0.1:
@@ -746,7 +623,8 @@ if __name__ == "__main__":
     else:
         if R['order2pLaplace_operator'] == 2 and R['epsilon'] == 0.1:
             # R['hidden2scale'] = (200, 60, 60, 60, 50)                    # 1*200+200*60+60*60+60*60+60*50+50*1= 22450
-            R['hidden2scale'] = (200, 60, 60, 50, 50)                    # 1*200+200*60+60*60+60*50+50*50+50*1=21350
+            # R['hidden2scale'] = (200, 60, 60, 50, 50)                    # 1*200+200*60+60*60+60*50+50*50+50*1=21350
+            R['hidden2scale'] = (250, 60, 60, 60, 50)  # 1*250+250*60+60*60+60*60+60*50+50*1=25500
         elif R['order2pLaplace_operator'] == 2 and R['epsilon'] == 0.01:
             R['hidden2scale'] = (250, 60, 60, 60, 50)                    # 1*250+250*60+60*60+60*60+60*50+50*1=25500
         elif R['order2pLaplace_operator'] == 5 and R['epsilon'] == 0.1:
@@ -763,17 +641,18 @@ if __name__ == "__main__":
     # R['freq2Normal'] = np.concatenate(([1, 2, 3, 4, 5, 1, 2, 3, 4, 5], np.arange(1, 21)), axis=0)
     # R['freq2Normal'] = np.concatenate(([1, 2, 3, 4, 5, 1, 2, 3, 4, 5], np.arange(1, 26)), axis=0)
     # R['freq2Normal'] = np.concatenate(([1, 2, 3, 4, 5, 1, 2, 3, 4, 5], np.arange(1, 31)), axis=0)
-    R['freq2Normal'] = np.concatenate(([1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5], np.arange(5, 31)), axis=0)
+    # R['freq2Normal'] = np.concatenate(([1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5], np.arange(5, 31)), axis=0)
+    R['freq2Normal'] = np.arange(1, 41)*0.5
 
-    if R['model2normal'] == 'DNN_FourierBase':
-        R['freq2Scale'] = np.arange(11, 101)
+    if R['model2Scale'] == 'Fourier_DNN':
+        # R['freq2Scale'] = np.arange(11, 101)
+        R['freq2Scale'] = np.arange(21, 121)
         # R['freq2Scale'] = np.arange(16, 101)
         # R['freq2Scale'] = np.arange(21, 101)
         # R['freq2Scale'] = np.arange(6, 105)
-        # R['freq2Scale'] = np.arange(1, 101)
     else:
-        R['freq2Scale'] = np.arange(11, 101)
-        # R['freq2Scale'] = np.arange(21, 101)
+        # R['freq2Scale'] = np.arange(11, 101)
+        R['freq2Scale'] = np.arange(21, 121)
         # R['freq2Scale'] = np.arange(6, 105)
         # R['freq2Scale'] = np.arange(1, 101)
 
@@ -782,7 +661,8 @@ if __name__ == "__main__":
     R['act_name2Normal'] = 'tanh'
     # R['act_name2Normal'] = 'srelu'
     # R['act_name2Normal'] = 'sin'
-    if R['model2normal'] == 'DNN_FourierBase':
+
+    if R['model2Normal'] == 'Fourier_DNN':
         # R['act_name2Normal'] = 's2relu'
         R['act_name2Normal'] = 'tanh'
 
@@ -801,18 +681,27 @@ if __name__ == "__main__":
     R['subfig_type'] = 0
 
     if R['loss_type'] == 'variational_loss' or R['loss_type'] == 'L2_loss':
-        R['balance2solus'] = 25.0
+        R['init_penalty2orthogonal'] = 25.0
         # R['contrib2scale'] = 0.01
         R['contrib2scale'] = 0.05
         # R['contrib2scale'] = 0.1
     elif R['loss_type'] == 'variational_loss2':
-        R['balance2solus'] = 25.0
+        R['init_penalty2orthogonal'] = 25.0
         # R['contrib2scale'] = 0.01
         R['contrib2scale'] = 0.05
         # R['contrib2scale'] = 0.1
 
-    # R['repeat_high_freq'] = True
-    R['repeat_high_freq'] = False
+    R['opt2loss_udotu'] = 'with_orthogonal'
+    # R['opt2loss_udotu'] = 'without_orthogonal'
+
+    # R['opt2loss_bd'] = 'unified_boundary'
+    R['opt2loss_bd'] = 'individual_boundary'
+
+    R['contrib_scale2orthogonal'] = 'with_contrib'
+    # R['contrib_scale2orthogonal'] = 'without_contrib'
+
+    # R['contrib_scale2boundary'] = 'with_contrib'
+    R['contrib_scale2boundary'] = 'without_contrib'
 
     solve_Multiscale_PDE(R)
 

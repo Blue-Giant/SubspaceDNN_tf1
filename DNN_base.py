@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on 2021.06.17
-@author: xi'an Li
+@author: Xi'an Li
+ Create Date: 2020.05.31
+ The last modification on 2021.10.15
 """
 import tensorflow as tf
 import numpy as np
@@ -306,26 +307,26 @@ def Generally_Init_NN(in_size, out_size, hidden_layers, Flag='flag'):
     Weights = []  # 权重列表，用于存储隐藏层的权重
     Biases = []  # 偏置列表，用于存储隐藏层的偏置
     # 隐藏层：第一层的权重和偏置，对输入数据做变换
-    W = tf.Variable(0.1 * tf.random.normal([in_size, hidden_layers[0]]), dtype='float32',
-                    name='W_transInput' + str(Flag))
-    B = tf.Variable(0.1 * tf.random.uniform([1, hidden_layers[0]]), dtype='float32',
-                    name='B_transInput' + str(Flag))
+    W = tf.compat.v1.Variable(0.1 * tf.random.normal([in_size, hidden_layers[0]]), dtype='float32',
+                              name='W_transInput' + str(Flag))
+    B = tf.compat.v1.Variable(0.1 * tf.random.uniform([1, hidden_layers[0]]), dtype='float32',
+                              name='B_transInput' + str(Flag))
     Weights.append(W)
     Biases.append(B)
     # 隐藏层：第二至倒数第二层的权重和偏置
     for i_layer in range(n_hiddens - 1):
-        W = tf.Variable(0.1 * tf.random.normal([hidden_layers[i_layer], hidden_layers[i_layer+1]]), dtype='float32',
-                        name='W_hidden' + str(i_layer + 1) + str(Flag))
-        B = tf.Variable(0.1 * tf.random.uniform([1, hidden_layers[i_layer+1]]), dtype='float32',
-                        name='B_hidden' + str(i_layer + 1) + str(Flag))
+        W = tf.compat.v1.Variable(0.1 * tf.random.normal([hidden_layers[i_layer], hidden_layers[i_layer+1]]),
+                                  dtype='float32', name='W_hidden' + str(i_layer + 1) + str(Flag))
+        B = tf.compat.v1.Variable(0.1 * tf.random.uniform([1, hidden_layers[i_layer+1]]), dtype='float32',
+                                  name='B_hidden' + str(i_layer + 1) + str(Flag))
         Weights.append(W)
         Biases.append(B)
 
     # 输出层：最后一层的权重和偏置。将最后的结果变换到输出维度
-    W = tf.Variable(0.1 * tf.random.normal([hidden_layers[-1], out_size]), dtype='float32',
-                    name='W_outTrans' + str(Flag))
-    B = tf.Variable(0.1 * tf.random.uniform([1, out_size]), dtype='float32',
-                    name='B_outTrans' + str(Flag))
+    W = tf.compat.v1.Variable(0.1 * tf.random.normal([hidden_layers[-1], out_size]), dtype='float32',
+                              name='W_outTrans' + str(Flag))
+    B = tf.compat.v1.Variable(0.1 * tf.random.uniform([1, out_size]), dtype='float32',
+                              name='B_outTrans' + str(Flag))
     Weights.append(W)
     Biases.append(B)
 
@@ -345,14 +346,16 @@ def Generally_Init_NN(in_size, out_size, hidden_layers, Flag='flag'):
 def truncated_normal_init(in_dim, out_dim, scale_coef=1.0, weight_name='weight'):
     xavier_stddev = np.sqrt(2/(in_dim + out_dim))
     # 尺度因子防止初始化的数值太小或者太大
-    V = tf.Variable(scale_coef*tf.truncated_normal([in_dim, out_dim], stddev=xavier_stddev), dtype=tf.float32, name=weight_name)
+    V = tf.compat.v1.Variable(scale_coef*tf.truncated_normal([in_dim, out_dim], stddev=xavier_stddev), dtype=tf.float32,
+                              name=weight_name)
     return V
 
 
 # tf.random_uniform()
 # 默认是在 0 到 1 之间产生随机数，也可以通过 minval 和 maxval 指定上下界
 def uniform_init(in_dim, out_dim, weight_name='weight'):
-    V = tf.Variable(tf.random_uniform([in_dim, out_dim], dtype=tf.float32), dtype=tf.float32, name=weight_name)
+    V = tf.compat.v1.Variable(tf.random_uniform([in_dim, out_dim], dtype=tf.float32), dtype=tf.float32,
+                              name=weight_name)
     return V
 
 
@@ -368,13 +371,13 @@ def uniform_init(in_dim, out_dim, weight_name='weight'):
 def normal_init(in_dim, out_dim, scale_coef=1.0, weight_name='weight'):
     stddev2normal = np.sqrt(2.0/(in_dim + out_dim))
     # 尺度因子防止初始化的数值太小或者太大
-    V = tf.Variable(scale_coef*tf.random_normal([in_dim, out_dim], mean=0, stddev=stddev2normal, dtype=tf.float32),
-                    dtype=tf.float32, name=weight_name)
+    V = tf.compat.v1.Variable(scale_coef*tf.random_normal([in_dim, out_dim], mean=0, stddev=stddev2normal,
+                                                          dtype=tf.float32), dtype=tf.float32, name=weight_name)
     return V
 
 
 def Truncated_normal_init_NN(in_size, out_size, hidden_layers, Flag='flag'):
-    with tf.variable_scope('WB_scope', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope('WB_scope', reuse=tf.compat.v1.AUTO_REUSE):
         scale = 5.0
         n_hiddens = len(hidden_layers)
         Weights = []                  # 权重列表，用于存储隐藏层的权重
@@ -401,36 +404,36 @@ def Truncated_normal_init_NN(in_size, out_size, hidden_layers, Flag='flag'):
 
 
 def Xavier_init_NN(in_size, out_size, hidden_layers, Flag='flag', varcoe=0.5):
-    with tf.variable_scope('WB_scope', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope('WB_scope', reuse=tf.compat.v1.AUTO_REUSE):
         n_hiddens = len(hidden_layers)
         Weights = []  # 权重列表，用于存储隐藏层的权重
         Biases = []  # 偏置列表，用于存储隐藏层的偏置
         # 隐藏层：第一层的权重和偏置，对输入数据做变换
         stddev_WB = (2.0 / (in_size + hidden_layers[0])) ** varcoe
-        W = tf.get_variable(name='W-transInput' + str(Flag), shape=(in_size, hidden_layers[0]),
-                            initializer=tf.random_normal_initializer(stddev=stddev_WB),
-                            dtype=tf.float32)
-        B = tf.get_variable(name='B-transInput' + str(Flag), shape=(hidden_layers[0],),
-                            initializer=tf.random_normal_initializer(stddev=stddev_WB),
-                            dtype=tf.float32)
+        W = tf.compat.v1.get_variable(name='W-transInput' + str(Flag), shape=(in_size, hidden_layers[0]),
+                                      initializer=tf.random_normal_initializer(stddev=stddev_WB),
+                                      dtype=tf.float32)
+        B = tf.compat.v1.get_variable(name='B-transInput' + str(Flag), shape=(hidden_layers[0],),
+                                      initializer=tf.random_normal_initializer(stddev=stddev_WB),
+                                      dtype=tf.float32)
         Weights.append(W)
         Biases.append(B)
         for i_layer in range(0, n_hiddens - 1):
             stddev_WB = (2.0 / (hidden_layers[i_layer] + hidden_layers[i_layer + 1])) ** varcoe
-            W = tf.get_variable(
+            W = tf.compat.v1.get_variable(
                 name='W' + str(i_layer + 1) + str(Flag), shape=(hidden_layers[i_layer], hidden_layers[i_layer + 1]),
                 initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
-            B = tf.get_variable(name='B' + str(i_layer + 1) + str(Flag), shape=(hidden_layers[i_layer + 1],),
-                                initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
+            B = tf.compat.v1.get_variable(name='B' + str(i_layer + 1) + str(Flag), shape=(hidden_layers[i_layer + 1],),
+                                          initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
             Weights.append(W)
             Biases.append(B)
 
         # 输出层：最后一层的权重和偏置。将最后的结果变换到输出维度
         stddev_WB = (2.0 / (hidden_layers[-1] + out_size)) ** varcoe
-        W = tf.get_variable(name='W-outTrans' + str(Flag), shape=(hidden_layers[-1], out_size),
-                            initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
-        B = tf.get_variable(name='B-outTrans' + str(Flag), shape=(out_size,),
-                            initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
+        W = tf.compat.v1.get_variable(name='W-outTrans' + str(Flag), shape=(hidden_layers[-1], out_size),
+                                      initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
+        B = tf.compat.v1.get_variable(name='B-outTrans' + str(Flag), shape=(out_size,),
+                                      initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
 
         Weights.append(W)
         Biases.append(B)
@@ -438,44 +441,44 @@ def Xavier_init_NN(in_size, out_size, hidden_layers, Flag='flag', varcoe=0.5):
 
 
 def Xavier_init_NN_Fourier(in_size, out_size, hidden_layers, Flag='flag', varcoe=0.5):
-    with tf.variable_scope('WB_scope', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope('WB_scope', reuse=tf.compat.v1.AUTO_REUSE):
         n_hiddens = len(hidden_layers)
         Weights = []  # 权重列表，用于存储隐藏层的权重
         Biases = []  # 偏置列表，用于存储隐藏层的偏置
         # 隐藏层：第一层的权重和偏置，对输入数据做变换
         stddev_WB = (2.0 / (in_size + hidden_layers[0])) ** varcoe
-        W = tf.get_variable(name='W-transInput' + str(Flag), shape=(in_size, hidden_layers[0]),
-                            initializer=tf.random_normal_initializer(stddev=stddev_WB),
-                            dtype=tf.float32)
-        B = tf.get_variable(name='B-transInput' + str(Flag), shape=(hidden_layers[0],),
-                            initializer=tf.random_normal_initializer(stddev=stddev_WB),
-                            dtype=tf.float32)
+        W = tf.compat.v1.get_variable(name='W-transInput' + str(Flag), shape=(in_size, hidden_layers[0]),
+                                      initializer=tf.random_normal_initializer(stddev=stddev_WB),
+                                      dtype=tf.float32)
+        B = tf.compat.v1.get_variable(name='B-transInput' + str(Flag), shape=(hidden_layers[0],),
+                                      initializer=tf.random_normal_initializer(stddev=stddev_WB),
+                                      dtype=tf.float32)
         Weights.append(W)
         Biases.append(B)
 
         for i_layer in range(0, n_hiddens - 1):
             stddev_WB = (2.0 / (hidden_layers[i_layer] + hidden_layers[i_layer + 1])) ** varcoe
             if 0 == i_layer:
-                W = tf.get_variable(
+                W = tf.compat.v1.get_variable(
                     name='W' + str(i_layer + 1) + str(Flag), shape=(hidden_layers[i_layer]*2, hidden_layers[i_layer + 1]),
                     initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
-                B = tf.get_variable(name='B' + str(i_layer + 1) + str(Flag), shape=(hidden_layers[i_layer + 1],),
-                                    initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
+                B = tf.compat.v1.get_variable(name='B' + str(i_layer + 1) + str(Flag), shape=(hidden_layers[i_layer + 1],),
+                                              initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
             else:
-                W = tf.get_variable(
+                W = tf.compat.v1.get_variable(
                     name='W' + str(i_layer + 1) + str(Flag), shape=(hidden_layers[i_layer], hidden_layers[i_layer + 1]),
                     initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
-                B = tf.get_variable(name='B' + str(i_layer + 1) + str(Flag), shape=(hidden_layers[i_layer + 1],),
-                                    initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
+                B = tf.compat.v1.get_variable(name='B' + str(i_layer + 1) + str(Flag), shape=(hidden_layers[i_layer + 1],),
+                                              initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
             Weights.append(W)
             Biases.append(B)
 
         # 输出层：最后一层的权重和偏置。将最后的结果变换到输出维度
         stddev_WB = (2.0 / (hidden_layers[-1] + out_size)) ** varcoe
-        W = tf.get_variable(name='W-outTrans' + str(Flag), shape=(hidden_layers[-1], out_size),
-                            initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
-        B = tf.get_variable(name='B-outTrans' + str(Flag), shape=(out_size,),
-                            initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
+        W = tf.compat.v1.get_variable(name='W-outTrans' + str(Flag), shape=(hidden_layers[-1], out_size),
+                                      initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
+        B = tf.compat.v1.get_variable(name='B-outTrans' + str(Flag), shape=(out_size,),
+                                      initializer=tf.random_normal_initializer(stddev=stddev_WB), dtype=tf.float32)
 
         Weights.append(W)
         Biases.append(B)
@@ -506,7 +509,7 @@ def regular_weights_biases_L2(weights, biases):
 
 
 #  --------------------------------------------  网络模型 ------------------------------------------------------
-def DNN(variable_input, Weights, Biases, hiddens, activateIn_name=None, activate_name=None, activateOut_name=None):
+def DNN(variable_input, Weights, Biases, hiddens, activateIn_name=None, activate_name=None, activateOut_name='linear'):
     """
     Args:
         variable_input: the input data, dim：NxD
@@ -611,7 +614,7 @@ def DNN(variable_input, Weights, Biases, hiddens, activateIn_name=None, activate
 
 
 def DNN_scale(variable_input, Weights, Biases, hiddens, freq_frag, activateIn_name=None, activate_name=None,
-              activateOut_name=None, repeat_Highfreq=True):
+              activateOut_name='linear', repeat_Highfreq=True):
     """
     Args:
         variable_input: the input data, dim：NxD
@@ -740,7 +743,7 @@ def DNN_scale(variable_input, Weights, Biases, hiddens, freq_frag, activateIn_na
 
 
 def subDNNs_scale(variable_input, Wlists, Blists, hiddens, freq_frag, activateIn_name=None, activate_name=None,
-                  activateOut_name=None, repeat_Highfreq=True):
+                  activateOut_name='linear', repeat_Highfreq=True):
     """
     Args:
         variable_input: the input data, dim：NxD
@@ -888,7 +891,7 @@ def subDNNs_scale(variable_input, Wlists, Blists, hiddens, freq_frag, activateIn
 
 
 def DNN_adapt_scale(variable_input, Weights, Biases, hiddens, freq_frag, activateIn_name=None, activate_name=None,
-                    activateOut_name=None, repeat_Highfreq=True):
+                    activateOut_name='linear', repeat_Highfreq=True):
     """
     Args:
         variable_input: the input data, dim：NxD
@@ -1021,7 +1024,7 @@ def DNN_adapt_scale(variable_input, Weights, Biases, hiddens, freq_frag, activat
 
 
 def subDNNs_adapt_scale(variable_input, Wlists, Blists, hiddens, freq_frag, activateIn_name=None, activate_name=None,
-                        activateOut_name=None, repeat_Highfreq=True):
+                        activateOut_name='linear', repeat_Highfreq=True):
     """
     Args:
         variable_input: the input data, dim：NxD
@@ -1163,7 +1166,7 @@ def subDNNs_adapt_scale(variable_input, Wlists, Blists, hiddens, freq_frag, acti
     return out
 
 
-def DNN_SinAddCos(variable_input, Weights, Biases, hiddens, freq_frag, activate_name=None, activateOut_name=None,
+def DNN_SinAddCos(variable_input, Weights, Biases, hiddens, freq_frag, activate_name=None, activateOut_name='linear',
                   repeat_Highfreq=True):
     """
     Args:
@@ -1272,7 +1275,7 @@ def DNN_SinAddCos(variable_input, Weights, Biases, hiddens, freq_frag, activate_
     return output
 
 
-def subDNNs_SinAddCos(variable_input, Wlists, Blists, hiddens, freq_frag, activate_name=None, activateOut_name=None,
+def subDNNs_SinAddCos(variable_input, Wlists, Blists, hiddens, freq_frag, activate_name=None, activateOut_name='linear',
                       repeat_Highfreq=True):
     """
     Args:
@@ -1391,7 +1394,7 @@ def subDNNs_SinAddCos(variable_input, Wlists, Blists, hiddens, freq_frag, activa
     return out
 
 
-def DNN_Sine0rCos_Base(variable_input, Weights, Biases, hiddens, freq_frag, activate_name=None, activateOut_name=None,
+def DNN_Sine0rCos_Base(variable_input, Weights, Biases, hiddens, freq_frag, activate_name=None, activateOut_name='linear',
                        repeat_Highfreq=True):
     """
     Args:
@@ -1503,7 +1506,7 @@ def DNN_Sine0rCos_Base(variable_input, Weights, Biases, hiddens, freq_frag, acti
 
 
 # FourierBase 代表 cos concatenate sin according to row（i.e. the number of sampling points）
-def DNN_FourierBase(variable_input, Weights, Biases, hiddens, freq_frag, activate_name=None, activateOut_name=None,
+def DNN_FourierBase(variable_input, Weights, Biases, hiddens, freq_frag, activate_name=None, activateOut_name='linear',
                     repeat_Highfreq=True, sFourier=0.5):
     """
     Args:
@@ -1603,7 +1606,7 @@ def DNN_FourierBase(variable_input, Weights, Biases, hiddens, freq_frag, activat
     else:
         sfactor = sFourier
 
-    H = sfactor * (tf.concat([tf.cos(H), tf.sin(H)], axis=-1))  # sfactor=0.5 效果好
+    H = sfactor * (tf.concat([tf.cos(H), tf.sin(H)], axis=-1))
     # H = sfactor * (tf.concat([tf.cos(np.pi * H), tf.sin(np.pi * H)], axis=-1))
     # H = sfactor * tf.concat([tf.cos(2 * np.pi * H), tf.sin(2 * np.pi * H)], axis=-1)
 
@@ -1612,9 +1615,8 @@ def DNN_FourierBase(variable_input, Weights, Biases, hiddens, freq_frag, activat
         H_pre = H
         W = Weights[k+1]
         B = Biases[k+1]
-        W_shape = W.get_shape().as_list()
         H = act_func(tf.add(tf.matmul(H, W), B))
-        if (hiddens[k+1] == hiddens_record) and (W_shape[0] == hiddens_record):
+        if (hiddens[k+1] == hiddens_record) and (k != 0):
             H = H + H_pre
         hiddens_record = hiddens[k+1]
 
@@ -1625,7 +1627,7 @@ def DNN_FourierBase(variable_input, Weights, Biases, hiddens, freq_frag, activat
     return output
 
 
-def DNN_WaveletBase(variable_input, Weights, Biases, hiddens, scale_frag, activate_name=None, activateOut_name=None,
+def DNN_WaveletBase(variable_input, Weights, Biases, hiddens, scale_frag, activate_name=None, activateOut_name='linear',
                     repeat_Highfreq=True, sWavelet=0.5):
     """
     Args:
