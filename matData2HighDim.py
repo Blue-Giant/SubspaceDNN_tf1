@@ -34,5 +34,5 @@ def get_data2HighDim(dim=2, data_path=None):
 
 if __name__ == '__main__':
     mat_data_path = 'dataMat_highDim'
-    mat_data = get_data2Biharmonic(dim=2, data_path=mat_data_path)
+    mat_data = get_data2HighDim(dim=2, data_path=mat_data_path)
     print('shdshd')

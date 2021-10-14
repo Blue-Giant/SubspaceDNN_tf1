@@ -630,8 +630,9 @@ if __name__ == "__main__":
         # R['contrib2scale1'] = 0.06
         # R['contrib2scale1'] = 0.07
         # R['contrib2scale1'] = 0.075
-        R['contrib2scale1'] = 0.15
+        R['contrib2scale1'] = 0.1
         # R['contrib2scale1'] = 0.125
+        # R['contrib2scale1'] = 0.15
 
         R['contrib2scale2'] = 0.01
         # R['contrib2scale2'] = 0.0075

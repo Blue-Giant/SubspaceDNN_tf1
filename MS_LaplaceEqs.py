@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-import matData2Laplacian
+import matData2pLaplace
 
 
 # 这里注意一下: 对于 np.ones_like(x), x要是一个有实际意义的树或数组或矩阵才可以。不可以是 tensorflow 占位符
@@ -139,9 +139,10 @@ def force_sice_3scale3(x, eps1=0.02, eps2=0.01):
 
     return fside
 
+
 #  例一
 def true_solution2E1(input_dim=None, output_dim=None, q=2, file_name=None):
-    mat_true = matData2Laplacian.loadMatlabIdata(file_name)
+    mat_true = matData2pLaplace.loadMatlabIdata(file_name)
     true_key = 'u_true'
     utrue = mat_true[true_key]
     return utrue
@@ -171,7 +172,7 @@ def elliptic_coef2E1(input_dim=None, output_dim=None):
 
 #  例二
 def true_solution2E2(input_dim=None, output_dim=None, q=2, file_name=None):
-    mat_true = matData2Laplacian.loadMatlabIdata(file_name)
+    mat_true = matData2pLaplace.loadMatlabIdata(file_name)
     true_key = 'u_true'
     utrue = mat_true[true_key]
     return utrue
@@ -201,7 +202,7 @@ def elliptic_coef2E2(input_dim=None, output_dim=None):
 
 # 例三
 def true_solution2E3(input_dim=None, output_dim=None, q=2, file_name=None):
-    mat_true = matData2Laplacian.loadMatlabIdata(file_name)
+    mat_true = matData2pLaplace.loadMatlabIdata(file_name)
     true_key = 'u_true'
     utrue = mat_true[true_key]
     return utrue
@@ -241,7 +242,7 @@ def elliptic_coef2E3(input_dim=None, output_dim=None):
 
 # 例四
 def true_solution2E4(input_dim=None, output_dim=None, q=2, file_name=None):
-    mat_true = matData2Laplacian.loadMatlabIdata(file_name)
+    mat_true = matData2pLaplace.loadMatlabIdata(file_name)
     true_key = 'u_true'
     utrue = mat_true[true_key]
     return utrue
@@ -303,7 +304,7 @@ def elliptic_coef2E4(input_dim=None, output_dim=None, mesh_num=2):
 
 # 例五
 def true_solution2E5(input_dim=None, output_dim=None, q=2, file_name=None):
-    mat_true = matData2Laplacian.loadMatlabIdata(file_name)
+    mat_true = matData2pLaplace.loadMatlabIdata(file_name)
     true_key = 'u_true'
     utrue = mat_true[true_key]
     return utrue
@@ -343,7 +344,7 @@ def elliptic_coef2E5(input_dim=None, output_dim=None):
 
 # 例六
 def true_solution2E6(input_dim=None, output_dim=None, q=2, file_name=None):
-    mat_true = matData2Laplacian.loadMatlabIdata(file_name)
+    mat_true = matData2pLaplace.loadMatlabIdata(file_name)
     true_key = 'u_true'
     utrue = mat_true[true_key]
     return utrue
