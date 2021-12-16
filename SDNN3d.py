@@ -15,7 +15,6 @@ import DNN_tools
 import MS_LaplaceEqs
 import MS_BoltzmannEqs
 import General_Laplace
-import matData2Laplacian
 import matData2Boltzmann
 import matData2HighDim
 import DNN_data
@@ -117,7 +116,7 @@ def solve_Multiscale_PDE(R):
     batchsize_bd = R['batch_size2boundary']
 
     bd_penalty_init = R['init_boundary_penalty']                # Regularization parameter for boundary conditions
-    penalty2WB = R['penalty2weight_biases']                # Regularization parameter for weights and biases
+    penalty2WB = R['penalty2weight_biases']                     # Regularization parameter for weights and biases
     lr_decay = R['learning_rate_decay']
     learning_rate = R['learning_rate']
     init_penalty2powU = R['balance2solus']
@@ -170,20 +169,20 @@ def solve_Multiscale_PDE(R):
     else:
         Ws_Scale, B_Scale = DNN_base.Xavier_init_NN(input_dim, out_dim, hidden2scale, flag2Scale)
 
-    global_steps = tf.Variable(0, trainable=False)
+    global_steps = tf.compat.v1.Variable(0, trainable=False)
     with tf.device('/gpu:%s' % (R['gpuNo'])):
-        with tf.variable_scope('vscope', reuse=tf.AUTO_REUSE):
-            XYZ_it = tf.placeholder(tf.float32, name='XYZ_it', shape=[None, input_dim])
-            XYZ_bottom_bd = tf.placeholder(tf.float32, name='bottom_bd', shape=[None, input_dim])
-            XYZ_top_bd = tf.placeholder(tf.float32, name='top_bd', shape=[None, input_dim])
-            XYZ_left_bd = tf.placeholder(tf.float32, name='left_bd', shape=[None, input_dim])
-            XYZ_right_bd = tf.placeholder(tf.float32, name='right_bd', shape=[None, input_dim])
-            XYZ_front_bd = tf.placeholder(tf.float32, name='front_bd', shape=[None, input_dim])
-            XYZ_behind_bd = tf.placeholder(tf.float32, name='behind_bd', shape=[None, input_dim])
-            bd_penalty = tf.placeholder_with_default(input=1e2, shape=[], name='bd_p')
-            penalty2powU = tf.placeholder_with_default(input=1.0, shape=[], name='p_powU')
-            in_learning_rate = tf.placeholder_with_default(input=1e-5, shape=[], name='lr')
-            train_opt = tf.placeholder_with_default(input=True, shape=[], name='train_opt')
+        with tf.compat.v1.variable_scope('vscope', reuse=tf.AUTO_REUSE):
+            XYZ_it = tf.compat.v1.placeholder(tf.float32, name='XYZ_it', shape=[None, input_dim])
+            XYZ_bottom_bd = tf.compat.v1.placeholder(tf.float32, name='bottom_bd', shape=[None, input_dim])
+            XYZ_top_bd = tf.compat.v1.placeholder(tf.float32, name='top_bd', shape=[None, input_dim])
+            XYZ_left_bd = tf.compat.v1.placeholder(tf.float32, name='left_bd', shape=[None, input_dim])
+            XYZ_right_bd = tf.compat.v1.placeholder(tf.float32, name='right_bd', shape=[None, input_dim])
+            XYZ_front_bd = tf.compat.v1.placeholder(tf.float32, name='front_bd', shape=[None, input_dim])
+            XYZ_behind_bd = tf.compat.v1.placeholder(tf.float32, name='behind_bd', shape=[None, input_dim])
+            bd_penalty = tf.compat.v1.placeholder_with_default(input=1e2, shape=[], name='bd_p')
+            penalty2powU = tf.compat.v1.placeholder_with_default(input=1.0, shape=[], name='p_powU')
+            in_learning_rate = tf.compat.v1.placeholder_with_default(input=1e-5, shape=[], name='lr')
+            train_opt = tf.compat.v1.placeholder_with_default(input=True, shape=[], name='train_opt')
             if R['model2normal'] == 'DNN':
                 UNN_Normal = DNN_base.DNN(XYZ_it, Ws_Normal, B_Normal, hidden2normal, activate_name=act_func1)
                 ULeft_NN_Normal = DNN_base.DNN(XYZ_left_bd, Ws_Normal, B_Normal, hidden2normal, activate_name=act_func1)
@@ -293,6 +292,10 @@ def solve_Multiscale_PDE(R):
 
                 if R['wavelet'] == 1:
                     # |Uc*Uf|^2-->0
+                    norm2UdU = tf.reshape(tf.reduce_mean(tf.multiply(UNN_Normal, alpha * UNN_Scale)), shape=[-1, 1])
+                    UNN_dot_UNN = tf.square(norm2UdU)
+                elif R['wavelet'] == 1:
+                    # |Uc*Uf|^2-->0
                     norm2UdU = tf.reshape(tf.square(tf.multiply(UNN_Normal, alpha * UNN_Scale)), shape=[-1, 1])
                     UNN_dot_UNN = tf.reduce_mean(norm2UdU)
                 elif R['wavelet'] == 2:
@@ -371,7 +374,7 @@ def solve_Multiscale_PDE(R):
 
             Loss2NN = Loss_it2NN + Loss_bds + Loss2UNN_dot_UNN + PWB
 
-            my_optimizer = tf.train.AdamOptimizer(in_learning_rate)
+            my_optimizer = tf.compat.v1.train.AdamOptimizer(in_learning_rate)
             if R['loss_type'] == 'variational_loss':
                 if R['train_opt'] == 1:
                     train_op1 = my_optimizer.minimize(Loss_it2NN, global_step=global_steps)
@@ -439,10 +442,10 @@ def solve_Multiscale_PDE(R):
         saveData.save_testData_or_solus2mat(test_xyz_bach, dataName='testXYZ', outPath=R['FolderName'])
 
     # ConfigProto 加上allow_soft_placement=True就可以使用 gpu 了
-    config = tf.ConfigProto(allow_soft_placement=True)  # 创建sess的时候对sess进行参数配置
+    config = tf.compat.v1.ConfigProto(allow_soft_placement=True)  # 创建sess的时候对sess进行参数配置
     config.gpu_options.allow_growth = True              # True是让TensorFlow在运行过程中动态申请显存，避免过多的显存占用。
     config.allow_soft_placement = True                  # 当指定的设备不存在时，允许选择一个存在的设备运行。比如gpu不存在，自动降到cpu上运行
-    with tf.Session(config=config) as sess:
+    with tf.compat.v1.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
         tmp_lr = learning_rate
         train_option = True

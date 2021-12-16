@@ -107,7 +107,7 @@ def solve_Multiscale_PDE(R):
     global_steps = tf.compat.v1.Variable(0, trainable=False)
     with tf.device('/gpu:%s' % (R['gpuNo'])):
         with tf.compat.v1.variable_scope('vscope', reuse=tf.compat.v1.AUTO_REUSE):
-            X_it = tf.compat.v1.placeholder(tf.float32, name='X_it', shape=[None, input_dim])                # * 行 1 列
+            X_it = tf.compat.v1.placeholder(tf.float32, name='X_it', shape=[None, input_dim])          # * 行 1 列
             X_left = tf.compat.v1.placeholder(tf.float32, name='X_left', shape=[None, input_dim])      # * 行 1 列
             X_right = tf.compat.v1.placeholder(tf.float32, name='X_right', shape=[None, input_dim])    # * 行 1 列
             bd_penalty = tf.compat.v1.placeholder_with_default(input=1e3, shape=[], name='bd_p')
@@ -124,11 +124,14 @@ def solve_Multiscale_PDE(R):
             elif R['model2Normal'] == 'Fourier_DNN':
                 freq2Normal = R['freq2Normal']
                 UNN_Normal = DNN_base.DNN_FourierBase(X_it, Ws_Normal, Bs_Normal, hidden2normal, freq2Normal, 
-                                                      activate_name=act2Normal, repeat_Highfreq=False)
+                                                      activate_name=act2Normal, repeat_Highfreq=False,
+                                                      sFourier=R['sFourier2Normal'])
                 UNN_Left_Normal = DNN_base.DNN_FourierBase(X_left, Ws_Normal, Bs_Normal, hidden2normal, freq2Normal,
-                                                           activate_name=act2Normal, repeat_Highfreq=False)
+                                                           activate_name=act2Normal, repeat_Highfreq=False,
+                                                           sFourier=R['sFourier2Normal'])
                 UNN_Right_Normal = DNN_base.DNN_FourierBase(X_right, Ws_Normal, Bs_Normal, hidden2normal, freq2Normal,
-                                                            activate_name=act2Normal, repeat_Highfreq=False)
+                                                            activate_name=act2Normal, repeat_Highfreq=False,
+                                                            sFourier=R['sFourier2Normal'])
 
             freq2scale = R['freq2Scale']
             if R['model2Scale'] == 'Scale_DNN':
@@ -147,11 +150,11 @@ def solve_Multiscale_PDE(R):
                                                            activateIn_name=act2Normal, activate_name=act2Scale)
             elif R['model2Scale'] == 'Fourier_DNN':
                 UNN_Scale = DNN_base.DNN_FourierBase(X_it, Ws_Scale, Bs_Scale, hidden2scale, freq2scale, 
-                                                     activate_name=act2Scale)
+                                                     activate_name=act2Scale, sFourier=R['sFourier2Scale'])
                 UNN_Left_Scale = DNN_base.DNN_FourierBase(X_left, Ws_Scale, Bs_Scale, hidden2scale, freq2scale, 
-                                                          activate_name=act2Scale)
+                                                          activate_name=act2Scale, sFourier=R['sFourier2Scale'])
                 UNN_Right_Scale = DNN_base.DNN_FourierBase(X_right, Ws_Scale, Bs_Scale, hidden2scale, freq2scale, 
-                                                           activate_name=act2Scale)
+                                                           activate_name=act2Scale, sFourier=R['sFourier2Scale'])
 
             UNN = UNN_Normal + alpha*UNN_Scale
 
@@ -201,8 +204,14 @@ def solve_Multiscale_PDE(R):
                     # dUNN_norm = tf.sqrt(tf.reshape(tf.reduce_sum(tf.square(dUNN), axis=-1), shape=[-1, 1]))
                     dUNN_norm = tf.reshape(tf.abs(dUNN), shape=[-1, 1])
                     divAdUNN = a_eps * tf.pow(dUNN_norm, p_index)
-                    loss_it_NN = (1.0 / p_index) * (divAdUNN + Kappa*UNN*UNN) - \
-                                 tf.multiply(tf.reshape(f(X_it), shape=[-1, 1]), UNN)
+                    if R['equa_name'] == 'Boltzmann2':
+                        fside = MS_BoltzmannEqs.get_force_side2Boltzmann_1D(X_it, index2p=p_index, eps=epsilon)
+                    else:
+                        fside = tf.reshape(f(X_it), shape=[-1, 1])
+                    if p_index == 1:
+                        loss_it_NN = (1.0 / 2) * (divAdUNN + Kappa*UNN*UNN) - tf.multiply(fside, UNN)
+                    elif p_index == 2:
+                        loss_it_NN = (1.0 / 2) * (divAdUNN + Kappa*UNN*UNN*UNN) - tf.multiply(fside, UNN)
 
                 Loss_it2NN = tf.reduce_mean(loss_it_NN)
             elif R['loss_type'] == 'variational_loss2':
@@ -227,23 +236,29 @@ def solve_Multiscale_PDE(R):
 
                 Loss_it2NN = tf.reduce_mean(loss_it_NN)
 
-            if R['opt2orthogonal'] == 1:
-                # |Uc*Uf|^2-->0 Uc 和 Uf 是两个列向量 形状为(*, 1)
-                norm2UdU = tf.square(tf.multiply(UNN_Normal, using_scale2orthogonal*UNN_Scale))
-                UNN_dot_UNN = tf.reduce_mean(norm2UdU)
-            elif R['opt2orthogonal'] == 2:
-                # |a(x)*(grad Uc)*(grad Uf)|^2-->0 a(x) 是 (*,1)的；(grad Uc)*(grad Uf)是向量相乘(*,2)·(*,2)
-                dU_dot_dU = tf.multiply(dUNN_Normal, using_scale2orthogonal*dUNN_Scale)
-                sum2dUdU = tf.reshape(tf.reduce_sum(dU_dot_dU, axis=-1), shape=[-1, 1])
-                norm2AdUdU = tf.square(tf.multiply(a_eps, sum2dUdU))
-                # norm2AdUdU = tf.square(sum2dUdU)
-                UNN_dot_UNN = tf.reduce_mean(norm2AdUdU)
-            else:  # |Uc*Uf|^2-->0 + |a(x)*(grad Uc)*(grad Uf)|^2-->0
-                U_dot_U = tf.reduce_sum(tf.square(tf.multiply(UNN_Normal, using_scale2orthogonal*UNN_Scale)), axis=-1)
-                dU_dot_dU = tf.multiply(dUNN_Normal, using_scale2orthogonal*dUNN_Scale)
-                sum2dUdU = tf.reshape(tf.reduce_sum(dU_dot_dU, axis=-1), shape=[-1, 1])
-                norm2AdUdU = tf.square(tf.multiply(a_eps, sum2dUdU))
-                UNN_dot_UNN = tf.reduce_mean(norm2AdUdU) + tf.reduce_mean(U_dot_U)
+            if R['opt2loss_udotu'] == 'with_orthogonal':
+                if R['opt2orthogonal'] == 0:  # L2 正交
+                    point_UdU = tf.multiply(UNN_Normal, using_scale2orthogonal * UNN_Scale)
+                    UNN_dot_UNN = tf.square(tf.reduce_mean(point_UdU))
+                elif R['opt2orthogonal'] == 1:  # 逐点平方正交
+                    # |Uc*Uf|^2-->0 Uc 和 Uf 是两个列向量 形状为(*, 1)
+                    norm2UdU = tf.square(tf.multiply(UNN_Normal, using_scale2orthogonal*UNN_Scale))
+                    UNN_dot_UNN = tf.reduce_mean(norm2UdU)
+                elif R['opt2orthogonal'] == 2:
+                    # |a(x)*(grad Uc)*(grad Uf)|^2-->0 a(x) 是 (*,1)的；(grad Uc)*(grad Uf)是向量相乘(*,2)·(*,2)
+                    dU_dot_dU = tf.multiply(dUNN_Normal, using_scale2orthogonal*dUNN_Scale)
+                    sum2dUdU = tf.reshape(tf.reduce_sum(dU_dot_dU, axis=-1), shape=[-1, 1])
+                    norm2AdUdU = tf.square(tf.multiply(a_eps, sum2dUdU))
+                    # norm2AdUdU = tf.square(sum2dUdU)
+                    UNN_dot_UNN = tf.reduce_mean(norm2AdUdU)
+                else:  # |Uc*Uf|^2-->0 + |a(x)*(grad Uc)*(grad Uf)|^2-->0
+                    U_dot_U = tf.reduce_sum(tf.square(tf.multiply(UNN_Normal, using_scale2orthogonal*UNN_Scale)), axis=-1)
+                    dU_dot_dU = tf.multiply(dUNN_Normal, using_scale2orthogonal*dUNN_Scale)
+                    sum2dUdU = tf.reshape(tf.reduce_sum(dU_dot_dU, axis=-1), shape=[-1, 1])
+                    norm2AdUdU = tf.square(tf.multiply(a_eps, sum2dUdU))
+                    UNN_dot_UNN = tf.reduce_mean(norm2AdUdU) + tf.reduce_mean(U_dot_U)
+            else:
+                UNN_dot_UNN = tf.constant(0.0)
 
             Loss2UNN_dot_UNN = UdotU_penalty * UNN_dot_UNN
 
@@ -253,7 +268,7 @@ def solve_Multiscale_PDE(R):
                 UNN_left = UNN_Left_Normal + using_scale2boundary * UNN_Left_Scale
                 UNN_right = UNN_Right_Normal + using_scale2boundary * UNN_Right_Scale
                 Loss_bd2NN = tf.square(UNN_left - U_left) + tf.square(UNN_right - U_right)
-                Loss_bd2NNs = bd_penalty * Loss_bd2NN
+                Loss_bd2NNs = bd_penalty * tf.reduce_mean(Loss_bd2NN)
             else:
                 loss_bdSquare_Normal = tf.square(UNN_Left_Normal - U_left) + tf.square(UNN_Right_Normal - U_right)
                 loss_bdSquare_Scale= tf.square(using_scale2boundary*UNN_Left_Scale) + \
@@ -429,7 +444,7 @@ def solve_Multiscale_PDE(R):
 
 if __name__ == "__main__":
     R={}
-    R['gpuNo'] = 1
+    R['gpuNo'] = 0
     if platform.system() == 'Windows':
         os.environ["CDUA_VISIBLE_DEVICES"] = "%s" % (R['gpuNo'])
     else:
@@ -509,15 +524,15 @@ if __name__ == "__main__":
         order = float(order2pLaplace)
         R['order2pLaplace_operator'] = order
 
-    R['input_dim'] = 1                           # 输入维数，即问题的维数(几元问题)
-    R['output_dim'] = 1                          # 输出维数
-    R['loss_type'] = 'variational_loss'          # PDE变分
-    # R['loss_type'] = 'variational_loss2'       # PDE变分
-    # R['loss_type'] = 'L2_loss'                 # L2 loss
+    R['input_dim'] = 1                        # 输入维数，即问题的维数(几元问题)
+    R['output_dim'] = 1                       # 输出维数
+    R['loss_type'] = 'variational_loss'       # PDE变分
+    # R['loss_type'] = 'variational_loss2'    # PDE变分
+    # R['loss_type'] = 'L2_loss'              # L2 loss
 
-    # R['opt2orthogonal'] = 0                    # 0: L2-orthogonal+energy    1: L2-orthogonal    2:energy
-    R['opt2orthogonal'] = 1  # 0: L2-orthogonal+energy    1: L2-orthogonal    2:energy
-    # R['opt2orthogonal'] = 2                    # 0: L2-orthogonal+energy    1: L2-orthogonal    2:energy
+    R['opt2orthogonal'] = 0                   # 0: L2-orthogonal(LO)  1: pointwise square orthogonal(PSO)  2:energy
+    # R['opt2orthogonal'] = 1                 # 0: L2-orthogonal(LO)  1: pointwise square orthogonal(PSO)  2:energy
+    # R['opt2orthogonal'] = 2                 # 0: L2-orthogonal(LO)  1: pointwise square orthogonal(PSO)  2:energy
 
     # ---------------------------- Setup of DNN -------------------------------
     R['batch_size2interior'] = 3000              # 内部训练数据的批大小
@@ -578,30 +593,30 @@ if __name__ == "__main__":
         if R['epsilon'] == 0.1 and R['order2pLaplace_operator'] == 2:
             # R['hidden2normal'] = (40, 80, 60, 60, 40)                  # 1*40+80*80+80*60+60*60+60*40+40*1 = 16840
             # R['hidden2normal'] = (50, 75, 60, 60, 40)                  # 1*50+100*75+75*60+60*60+60*40+40*1 = 18090
-            R['hidden2normal'] = (50, 80, 60, 60, 40)  # 1*50+100*80+80*60+60*60+60*40+40*1 = 18890
+            R['hidden2normal'] = (50, 80, 60, 60, 40)                    # 1*50+100*80+80*60+60*60+60*40+40*1 = 18890
         elif R['epsilon'] == 0.01 and R['order2pLaplace_operator'] == 2:
             R['hidden2normal'] = (50, 80, 60, 60, 40)                  # 1*50+100*80+80*60+60*60+60*40+40*1 = 18890
         elif R['epsilon'] == 0.1 and R['order2pLaplace_operator'] == 5:
-            R['hidden2normal'] = (50, 75, 60, 60, 40)                  # 1*50+100*75+75*60+60*60+60*40+40*1 = 18090
+            R['hidden2normal'] = (50, 80, 60, 60, 40)                  # 1*50+100*75+75*60+60*60+60*40+40*1 = 18090
         elif R['epsilon'] == 0.01 and R['order2pLaplace_operator'] == 5:
             R['hidden2normal'] = (50, 80, 60, 60, 40)                  # 1*50+100*80+80*60+60*60+60*40+40*1 = 18890
         elif R['epsilon'] == 0.1 and R['order2pLaplace_operator'] == 8:
-            R['hidden2normal'] = (50, 75, 60, 60, 40)                  # 1*50+100*75+75*60+60*60+60*40+40*1 = 18090
+            R['hidden2normal'] = (50, 80, 60, 60, 40)                  # 1*50+100*75+75*60+60*60+60*40+40*1 = 18090
         elif R['epsilon'] == 0.01 and R['order2pLaplace_operator'] == 8:
             R['hidden2normal'] = (50, 80, 60, 60, 40)                  # 1*50+100*80+80*60+60*60+60*40+40*1 = 18890
     else:
         if R['epsilon'] == 0.1 and R['order2pLaplace_operator'] == 2:
             # R['hidden2normal'] = (80, 80, 60, 60, 40)                 # 1*80+80*80+80*60+60*60+60*40+40*1 = 16880
             # R['hidden2normal'] = (100, 75, 60, 60, 40)                # 1*100+100*75+75*60+60*60+60*40+40*1 = 18140
-            R['hidden2normal'] = (100, 80, 60, 60, 40)  # 1*100+100*80+80*60+60*60+60*40+40*1 = 18940
+            R['hidden2normal'] = (100, 80, 60, 60, 40)                  # 1*100+100*80+80*60+60*60+60*40+40*1 = 18940
         elif R['epsilon'] == 0.01 and R['order2pLaplace_operator'] == 2:
             R['hidden2normal'] = (100, 80, 60, 60, 40)                 # 1*100+100*80+80*60+60*60+60*40+40*1 = 18940
         elif R['epsilon'] == 0.1 and R['order2pLaplace_operator'] == 5:
-            R['hidden2normal'] = (100, 75, 60, 60, 40)                 # 1*100+100*75+75*60+60*60+60*40+40*1 = 18140
+            R['hidden2normal'] = (100, 80, 60, 60, 40)                 # 1*100+100*75+75*60+60*60+60*40+40*1 = 18140
         elif R['epsilon'] == 0.01 and R['order2pLaplace_operator'] == 5:
             R['hidden2normal'] = (100, 80, 60, 60, 40)                 # 1*100+100*80+80*60+60*60+60*40+40*1 = 18940
         elif R['epsilon'] == 0.1 and R['order2pLaplace_operator'] == 8:
-            R['hidden2normal'] = (100, 75, 60, 60, 40)                 # 1*100+100*75+75*60+60*60+60*40+40*1 = 18140
+            R['hidden2normal'] = (100, 80, 60, 60, 40)                 # 1*100+100*75+75*60+60*60+60*40+40*1 = 18140
         elif R['epsilon'] == 0.01 and R['order2pLaplace_operator'] == 8:
             R['hidden2normal'] = (100, 80, 60, 60, 40)                 # 1*100+100*80+80*60+60*60+60*40+40*1 = 18940
 
@@ -609,32 +624,32 @@ if __name__ == "__main__":
         if R['order2pLaplace_operator'] == 2 and R['epsilon'] == 0.1:
             # R['hidden2scale'] = (100, 60, 60, 60, 50)                    # 1*100+200*60+60*60+60*60+60*50+50*1= 22350
             # R['hidden2scale'] = (100, 60, 60, 50, 50)                    # 1*100+200*60+60*60+60*50+50*50+50*1=21250
-            R['hidden2scale'] = (125, 60, 60, 60, 50)  # 1*125+250*60+60*60+60*60+60*50+50*1=25375
+            R['hidden2scale'] = (125, 60, 60, 60, 50)                      # 1*125+250*60+60*60+60*60+60*50+50*1=25375
         elif R['order2pLaplace_operator'] == 2 and R['epsilon'] == 0.01:
             R['hidden2scale'] = (125, 60, 60, 60, 50)                    # 1*125+250*60+60*60+60*60+60*50+50*1=25375
         elif R['order2pLaplace_operator'] == 5 and R['epsilon'] == 0.1:
-            R['hidden2scale'] = (100, 80, 60, 60, 60)                    # 1*100+200*80+80*60+60*60+60*60+60*1=28160
+            R['hidden2scale'] = (125, 60, 60, 60, 50)                    # 1*100+200*80+80*60+60*60+60*60+60*1=28160
         elif R['order2pLaplace_operator'] == 5 and R['epsilon'] == 0.01:
-            R['hidden2scale'] = (125, 80, 70, 60, 60)                    # 1*125+250*80+80*70+70*60+60*60+60*1=33585
+            R['hidden2scale'] = (125, 60, 60, 60, 50)                    # 1*125+250*80+80*70+70*60+60*60+60*1=33585
         elif R['order2pLaplace_operator'] == 8 and R['epsilon'] == 0.1:
-            R['hidden2scale'] = (100, 120, 80, 80, 60)                   # 1*100+200*120+120*80+80*80+80*60+60*1=44960
+            R['hidden2scale'] = (125, 60, 60, 60, 50)                   # 1*100+200*120+120*80+80*80+80*60+60*1=44960
         elif R['order2pLaplace_operator'] == 8 and R['epsilon'] == 0.01:
-            R['hidden2scale'] = (125, 120, 80, 80, 60)                   # 1*125+250*120+120*80+80*80+80*60+60*1=50985
+            R['hidden2scale'] = (125, 60, 60, 60, 50)                   # 1*125+250*120+120*80+80*80+80*60+60*1=50985
     else:
         if R['order2pLaplace_operator'] == 2 and R['epsilon'] == 0.1:
             # R['hidden2scale'] = (200, 60, 60, 60, 50)                    # 1*200+200*60+60*60+60*60+60*50+50*1= 22450
             # R['hidden2scale'] = (200, 60, 60, 50, 50)                    # 1*200+200*60+60*60+60*50+50*50+50*1=21350
-            R['hidden2scale'] = (250, 60, 60, 60, 50)  # 1*250+250*60+60*60+60*60+60*50+50*1=25500
+            R['hidden2scale'] = (250, 60, 60, 60, 50)                    # 1*250+250*60+60*60+60*60+60*50+50*1=25500
         elif R['order2pLaplace_operator'] == 2 and R['epsilon'] == 0.01:
             R['hidden2scale'] = (250, 60, 60, 60, 50)                    # 1*250+250*60+60*60+60*60+60*50+50*1=25500
         elif R['order2pLaplace_operator'] == 5 and R['epsilon'] == 0.1:
-            R['hidden2scale'] = (200, 80, 60, 60, 60)                    # 1*200+200*80+80*80+80*60+60*60+60*1=28260
+            R['hidden2scale'] = (250, 60, 60, 60, 50)                    # 1*200+200*80+80*80+80*60+60*60+60*1=28260
         elif R['order2pLaplace_operator'] == 5 and R['epsilon'] == 0.01:
-            R['hidden2scale'] = (250, 80, 70, 60, 60)                    # 1*250+250*80+80*70+70*60+60*60+60*1=33710
+            R['hidden2scale'] = (250, 60, 60, 60, 50)                    # 1*250+250*80+80*70+70*60+60*60+60*1=33710
         elif R['order2pLaplace_operator'] == 8 and R['epsilon'] == 0.1:
-            R['hidden2scale'] = (200, 120, 80, 80, 60)                   # 1*200+200*120+120*80+80*80+80*60+60*1=45060
+            R['hidden2scale'] = (250, 60, 60, 60, 50)                   # 1*200+200*120+120*80+80*80+80*60+60*1=45060
         elif R['order2pLaplace_operator'] == 8 and R['epsilon'] == 0.01:
-            R['hidden2scale'] = (250, 120, 80, 80, 60)                   # 1*250+250*120+120*80+80*80+80*60+60*1=51110
+            R['hidden2scale'] = (250, 60, 60, 60, 50)                   # 1*250+250*120+120*80+80*80+80*60+60*1=51110
 
     # R['freq2Normal'] = np.arange(10, 100)
     # R['freq2Normal'] = np.concatenate(([1, 1, 1, 1, 1], np.arange(1, 26)), axis=0)
@@ -666,6 +681,12 @@ if __name__ == "__main__":
         # R['act_name2Normal'] = 's2relu'
         R['act_name2Normal'] = 'tanh'
 
+    if R['model2Normal'] == 'Fourier_DNN' and R['act_name2Normal'] == 'tanh':
+        R['sFourier2Normal'] = 1.0
+        # R['sFourier2Normal'] = 0.5
+    elif R['model2Normal'] == 'Fourier_DNN' and R['act_name2Normal'] == 's2relu':
+        R['sFourier2Normal'] = 0.5
+
     # R['act_name2Scale'] = 'relu'
     # R['act_name2Scale']' = leaky_relu'
     # R['act_name2Scale'] = 'srelu'
@@ -680,13 +701,18 @@ if __name__ == "__main__":
     R['plot_ongoing'] = 0
     R['subfig_type'] = 0
 
+    # R['sFourier2Scale'] = 0.5
+    R['sFourier2Scale'] = 1.0
+
     if R['loss_type'] == 'variational_loss' or R['loss_type'] == 'L2_loss':
-        R['init_penalty2orthogonal'] = 25.0
+        R['init_penalty2orthogonal'] = 20.0
+        # R['init_penalty2orthogonal'] = 25.0
         # R['contrib2scale'] = 0.01
         R['contrib2scale'] = 0.05
         # R['contrib2scale'] = 0.1
     elif R['loss_type'] == 'variational_loss2':
-        R['init_penalty2orthogonal'] = 25.0
+        R['init_penalty2orthogonal'] = 20.0
+        # R['init_penalty2orthogonal'] = 25.0
         # R['contrib2scale'] = 0.01
         R['contrib2scale'] = 0.05
         # R['contrib2scale'] = 0.1
@@ -697,8 +723,8 @@ if __name__ == "__main__":
     # R['opt2loss_bd'] = 'unified_boundary'
     R['opt2loss_bd'] = 'individual_boundary'
 
-    R['contrib_scale2orthogonal'] = 'with_contrib'
-    # R['contrib_scale2orthogonal'] = 'without_contrib'
+    # R['contrib_scale2orthogonal'] = 'with_contrib'
+    R['contrib_scale2orthogonal'] = 'without_contrib'
 
     # R['contrib_scale2boundary'] = 'with_contrib'
     R['contrib_scale2boundary'] = 'without_contrib'

@@ -60,7 +60,10 @@ def solve_Multiscale_PDE(R):
         using_scale1_orthogonal = 1.0
         using_scale2_orthogonal = 1.0
 
-    if R['opt2loss_bd'] != 'unified_boundary' and R['contrib_scale2boundary'] == 'with_contrib':
+    if R['opt2loss_bd'] == 'unified_boundary' and R['contrib_scale2boundary'] == 'with_contrib':
+        using_scale1_boundary = R['contrib2scale1']
+        using_scale2_boundary = R['contrib2scale2']
+    elif R['opt2loss_bd'] == 'individual_boundary' and R['contrib_scale2boundary'] == 'with_contrib':
         using_scale1_boundary = R['contrib2scale1']
         using_scale2_boundary = R['contrib2scale2']
     else:
@@ -254,16 +257,14 @@ def solve_Multiscale_PDE(R):
                 UNN_left = UNNLeft_Normal + using_scale1_boundary*UNNLeft_scale1 + using_scale2_boundary*UNNLeft_scale2
                 UNN_right = UNNRight_Normal + using_scale1_boundary * UNNRight_scale1 + using_scale2_boundary * UNNRight_scale2
                 Loss_bd2NN = tf.square(UNN_left - U_left) + tf.square(UNN_right - U_right)
-                Loss_bd2NNs = bd_penalty * Loss_bd2NN
+                Loss_bd2NNs = tf.reduce_mean(Loss_bd2NN)
             else:
                 loss_bd_Normal = tf.square(UNNLeft_Normal - U_left) + tf.square(UNNRight_Normal - U_right)
                 loss_bd_scale1 = tf.square(using_scale1_boundary*UNNLeft_scale1) + \
                                  tf.square(using_scale1_boundary*UNNRight_scale1)
                 loss_bd_scale2 = tf.square(using_scale2_boundary*UNNLeft_scale2) + \
                                  tf.square(using_scale2_boundary*UNNRight_scale2)
-                Loss_bd2NN = tf.reduce_mean(loss_bd_Normal) + tf.reduce_mean(loss_bd_scale1) + tf.reduce_mean(loss_bd_scale2)
-
-                Loss_bd2NNs = bd_penalty * Loss_bd2NN
+                Loss_bd2NNs = tf.reduce_mean(loss_bd_Normal) + tf.reduce_mean(loss_bd_scale1) + tf.reduce_mean(loss_bd_scale2)
 
             if R['regular_wb_model'] == 'L1':
                 regular_WB_Normal = DNN_base.regular_weights_biases_L1(Ws_Normal, Bs_Normal)    # 正则化权重和偏置 L1正则化
@@ -280,7 +281,7 @@ def solve_Multiscale_PDE(R):
 
             PWB = penalty2WB * (regular_WB_Normal + regular_WB_Scale1 + regular_WB_Scale2)
 
-            Loss2NN = Loss_it2NN + Loss_bd2NNs + Loss2UNN_dot_UNN + PWB
+            Loss2NN = Loss_it2NN + bd_penalty*Loss_bd2NNs + Loss2UNN_dot_UNN + PWB
 
             my_optimizer = tf.compat.v1.train.AdamOptimizer(in_learning_rate)
             if R['loss_type'] == 'variational_loss' or R['loss_type'] == 'variational_loss2':
@@ -368,9 +369,9 @@ def solve_Multiscale_PDE(R):
                 temp_penalty_powU = init_UdotU_penalty
 
             _, loss_it_nn, loss_bd_nn, loss_nn, udu_nn, train_mse_nn, train_rel_nn, pwb = sess.run(
-                [train_Loss2NN, Loss_it2NN, Loss_bd2NN, Loss2NN, UNN_dot_UNN, train_mse_NN, train_rel_NN, PWB],
-                feed_dict={X_it: x_it_batch, X_left: xl_bd_batch, X_right: xr_bd_batch,
-                           in_learning_rate: tmp_lr, bd_penalty: temp_penalty_bd, UdotU_penalty: temp_penalty_powU})
+                [train_Loss2NN, Loss_it2NN, Loss_bd2NNs, Loss2NN, UNN_dot_UNN, train_mse_NN, train_rel_NN, PWB],
+                feed_dict={X_it: x_it_batch, X_left: xl_bd_batch, X_right: xr_bd_batch, in_learning_rate: tmp_lr,
+                           bd_penalty: temp_penalty_bd, UdotU_penalty: temp_penalty_powU})
             loss_it_all.append(loss_it_nn)
             loss_bd_all.append(loss_bd_nn)
             loss_all.append(loss_nn)
@@ -395,6 +396,19 @@ def solve_Multiscale_PDE(R):
 
                 DNN_tools.print_and_log_test_one_epoch(test_mse2nn, test_rel2nn, log_out=log_fileout)
 
+            if (i_epoch != 0) and (i_epoch != 100000) and (i_epoch % 1000 == 0) and i_epoch >= int(0.5*R['max_epoch']):
+                pathOut = '%s/%s' % (R['FolderName'], int(i_epoch / 1000))
+                if not os.path.exists(pathOut):       # 判断路径是否已经存在
+                    os.mkdir(pathOut)                 # 无 log_out_path 路径，创建一个 log_out_path 路径
+
+                saveData.save_testData_or_solus2mat(utest_nn, dataName=act2Normal, outPath=pathOut)
+                saveData.save_testData_or_solus2mat(unn_normal, dataName='normal', outPath=pathOut)
+                saveData.save_testData_or_solus2mat(unn_scale1, dataName='scale1', outPath=pathOut)
+                saveData.save_testData_or_solus2mat(unn_scale2, dataName='scale2', outPath=pathOut)
+
+                saveData.save_testMSE_REL2mat(test_mse_all, test_rel_all, actName=act2Scale, outPath=pathOut)
+                plotData.plotTest_MSE_REL(test_mse_all, test_rel_all, test_epoch, actName=act2Scale, seedNo=R['seed'],
+                                          outPath=pathOut, yaxis_scale=True)
     # -----------------------  save training results to mat files, then plot them ---------------------------------
     saveData.save_trainLoss2mat_1actFunc(loss_it_all, loss_bd_all, loss_all, actName=act2Normal,
                                          outPath=R['FolderName'])
@@ -508,13 +522,13 @@ if __name__ == "__main__":
     R['loss_type'] = 'variational_loss'        # PDE变分
     # R['loss_type'] = 'variational_loss2'  # PDE变分
     # R['loss_type'] = 'L2_loss'                # L2 loss
-    # R['opt2orthogonal'] = 0                   # 0: L2 opt2orthogonal+energy    1: opt2orthogonal    2:energy
-    R['opt2orthogonal'] = 1                     # 0: L2 opt2orthogonal+energy    1: opt2orthogonal    2:energy
-    # R['opt2orthogonal'] = 2                   # 0: L2 opt2orthogonal+energy    1: opt2orthogonal    2:energy
+    # R['opt2orthogonal'] = 0                   # 0: L2 orthogonal+energy    1: orthogonal    2:energy
+    R['opt2orthogonal'] = 1                     # 0: L2 orthogonal+energy    1: orthogonal    2:energy
+    # R['opt2orthogonal'] = 2                   # 0: L2 orthogonal+energy    1: orthogonal    2:energy
 
     # ---------------------------- Setup of DNN -------------------------------
-    R['batch_size2interior'] = 3000            # 内部训练数据的批大小
-    R['batch_size2boundary'] = 500             # 边界训练数据大小
+    R['batch_size2interior'] = 3000             # 内部训练数据的批大小
+    R['batch_size2boundary'] = 500              # 边界训练数据大小
 
     R['regular_wb_model'] = 'L0'
     # R['regular_wb_model'] = 'L1'
@@ -658,6 +672,9 @@ if __name__ == "__main__":
 
     # R['contrib_scale2boundary'] = 'with_contrib'
     R['contrib_scale2boundary'] = 'without_contrib'
+
+    if R['opt2loss_bd'] == 'unified_boundary':
+        R['contrib_scale2boundary'] = 'with_contrib'
 
     solve_Multiscale_PDE(R)
 

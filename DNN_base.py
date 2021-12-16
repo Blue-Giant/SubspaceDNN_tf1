@@ -297,6 +297,12 @@ def phi(x):
            - tf.nn.relu(x-3)*tf.nn.relu(x-3)*tf.nn.relu(x-3)
 
 
+def gelu(x):
+    temp2x = np.sqrt(2 / np.pi) * (x + 0.044715 * x * x * x)
+    out = 0.5*+ 0.5*x*tf.tanh(temp2x)
+    return out
+
+
 # ------------------------------------------------  初始化权重和偏置 --------------------------------------------
 # 生成DNN的权重和偏置
 # tf.random_normal(): 用于从服从指定正太分布的数值中取出随机数
@@ -543,6 +549,8 @@ def DNN(variable_input, Weights, Biases, hiddens, activateIn_name='tanh', activa
         act_in = tf.nn.softplus
     elif str.lower(activateIn_name) == 'sigmoid':
         act_in = tf.nn.sigmoid
+    elif str.lower(activateIn_name) == 'gelu':
+        act_in = gelu
     else:
         act_in = linear
 
@@ -566,6 +574,8 @@ def DNN(variable_input, Weights, Biases, hiddens, activateIn_name='tanh', activa
         act_func = tf.nn.softplus
     elif str.lower(activate_name) == 'sigmoid':
         act_func = tf.nn.sigmoid
+    elif str.lower(activate_name) == 'gelu':
+        act_func = gelu
     else:
         act_func = linear
 
@@ -589,6 +599,8 @@ def DNN(variable_input, Weights, Biases, hiddens, activateIn_name='tanh', activa
         act_out = tf.nn.softplus
     elif str.lower(activateOut_name) == 'sigmoid':
         act_out = tf.nn.sigmoid
+    elif str.lower(activateOut_name) == 'gelu':
+        act_out = gelu
     else:
         act_out = linear
 
@@ -650,6 +662,8 @@ def DNN_scale(variable_input, Weights, Biases, hiddens, freq_frag, activateIn_na
         act_in = tf.nn.softplus
     elif str.lower(activateIn_name) == 'sigmoid':
         act_in = tf.nn.sigmoid
+    elif str.lower(activateIn_name) == 'gelu':
+        act_in = gelu
     else:
         act_in = linear
 
@@ -673,6 +687,8 @@ def DNN_scale(variable_input, Weights, Biases, hiddens, freq_frag, activateIn_na
         act_func = tf.nn.softplus
     elif str.lower(activate_name) == 'sigmoid':
         act_func = tf.nn.sigmoid
+    elif str.lower(activate_name) == 'gelu':
+        act_func = gelu
     else:
         act_func = linear
 
@@ -696,6 +712,8 @@ def DNN_scale(variable_input, Weights, Biases, hiddens, freq_frag, activateIn_na
         act_out = tf.nn.softplus
     elif str.lower(activateOut_name) == 'sigmoid':
         act_out = tf.nn.sigmoid
+    elif str.lower(activateOut_name) == 'gelu':
+        act_out = gelu
     else:
         act_out = linear
 
@@ -779,6 +797,8 @@ def subDNNs_scale(variable_input, Wlists, Blists, hiddens, freq_frag, activateIn
         act_in = tf.nn.softplus
     elif str.lower(activateIn_name) == 'sigmoid':
         act_in = tf.nn.sigmoid
+    elif str.lower(activateIn_name) == 'gelu':
+        act_in = gelu
     else:
         act_in = linear
 
@@ -802,6 +822,8 @@ def subDNNs_scale(variable_input, Wlists, Blists, hiddens, freq_frag, activateIn
         act_func = tf.nn.softplus
     elif str.lower(activate_name) == 'sigmoid':
         act_func = tf.nn.sigmoid
+    elif str.lower(activate_name) == 'gelu':
+        act_func = gelu
     else:
         act_func = linear
 
@@ -825,6 +847,8 @@ def subDNNs_scale(variable_input, Wlists, Blists, hiddens, freq_frag, activateIn
         act_out = tf.nn.softplus
     elif str.lower(activateOut_name) == 'sigmoid':
         act_out = tf.nn.sigmoid
+    elif str.lower(activateOut_name) == 'gelu':
+        act_out = gelu
     else:
         act_out = linear
 
@@ -927,6 +951,8 @@ def DNN_adapt_scale(variable_input, Weights, Biases, hiddens, freq_frag, activat
         act_in = tf.nn.softplus
     elif str.lower(activateIn_name) == 'sigmoid':
         act_in = tf.nn.sigmoid
+    elif str.lower(activateIn_name) == 'gelu':
+        act_in = gelu
     else:
         act_in = linear
 
@@ -950,6 +976,8 @@ def DNN_adapt_scale(variable_input, Weights, Biases, hiddens, freq_frag, activat
         act_func = tf.nn.softplus
     elif str.lower(activate_name) == 'sigmoid':
         act_func = tf.nn.sigmoid
+    elif str.lower(activate_name) == 'gelu':
+        act_func = gelu
     else:
         act_func = linear
 
@@ -973,6 +1001,8 @@ def DNN_adapt_scale(variable_input, Weights, Biases, hiddens, freq_frag, activat
         act_out = tf.nn.softplus
     elif str.lower(activateOut_name) == 'sigmoid':
         act_out = tf.nn.sigmoid
+    elif str.lower(activateOut_name) == 'gelu':
+        act_out = gelu
     else:
         act_out = linear
 
@@ -1060,6 +1090,8 @@ def subDNNs_adapt_scale(variable_input, Wlists, Blists, hiddens, freq_frag, acti
         act_in = tf.nn.softplus
     elif str.lower(activateIn_name) == 'sigmoid':
         act_in = tf.nn.sigmoid
+    elif str.lower(activateIn_name) == 'gelu':
+        act_in = gelu
     else:
         act_in = linear
 
@@ -1083,6 +1115,8 @@ def subDNNs_adapt_scale(variable_input, Wlists, Blists, hiddens, freq_frag, acti
         act_func = tf.nn.softplus
     elif str.lower(activate_name) == 'sigmoid':
         act_func = tf.nn.sigmoid
+    elif str.lower(activate_name) == 'gelu':
+        act_func = gelu
     else:
         act_func = linear
 
@@ -1106,6 +1140,8 @@ def subDNNs_adapt_scale(variable_input, Wlists, Blists, hiddens, freq_frag, acti
         act_out = tf.nn.softplus
     elif str.lower(activateOut_name) == 'sigmoid':
         act_out = tf.nn.sigmoid
+    elif str.lower(activateOut_name) == 'gelu':
+        act_out = gelu
     else:
         act_out = linear
 
@@ -1202,6 +1238,8 @@ def DNN_SinAddCos(variable_input, Weights, Biases, hiddens, freq_frag, activate_
         act_func = tf.nn.softplus
     elif str.lower(activate_name) == 'sigmoid':
         act_func = tf.nn.sigmoid
+    elif str.lower(activate_name) == 'gelu':
+        act_func = gelu
     else:
         act_func = linear
 
@@ -1225,6 +1263,8 @@ def DNN_SinAddCos(variable_input, Weights, Biases, hiddens, freq_frag, activate_
         act_out = tf.nn.softplus
     elif str.lower(activateOut_name) == 'sigmoid':
         act_out = tf.nn.sigmoid
+    elif str.lower(activateOut_name) == 'gelu':
+        act_out = gelu
     else:
         act_out = linear
 
@@ -1311,6 +1351,8 @@ def subDNNs_SinAddCos(variable_input, Wlists, Blists, hiddens, freq_frag, activa
         act_func = tf.nn.softplus
     elif str.lower(activate_name) == 'sigmoid':
         act_func = tf.nn.sigmoid
+    elif str.lower(activate_name) == 'gelu':
+        act_func = gelu
     else:
         act_func = linear
 
@@ -1334,6 +1376,8 @@ def subDNNs_SinAddCos(variable_input, Wlists, Blists, hiddens, freq_frag, activa
         act_out = tf.nn.softplus
     elif str.lower(activateOut_name) == 'sigmoid':
         act_out = tf.nn.sigmoid
+    elif str.lower(activateOut_name) == 'gelu':
+        act_out = gelu
     else:
         act_out = linear
     freqs_parts = []
@@ -1430,6 +1474,8 @@ def DNN_Sine0rCos_Base(variable_input, Weights, Biases, hiddens, freq_frag, acti
         act_func = tf.nn.softplus
     elif str.lower(activate_name) == 'sigmoid':
         act_func = tf.nn.sigmoid
+    elif str.lower(activate_name) == 'gelu':
+        act_func = gelu
     else:
         act_func = linear
 
@@ -1453,6 +1499,8 @@ def DNN_Sine0rCos_Base(variable_input, Weights, Biases, hiddens, freq_frag, acti
         act_out = tf.nn.softplus
     elif str.lower(activateOut_name) == 'sigmoid':
         act_out = tf.nn.sigmoid
+    elif str.lower(activateOut_name) == 'gelu':
+        act_out = gelu
     else:
         act_out = linear
 
@@ -1544,6 +1592,8 @@ def DNN_FourierBase(variable_input, Weights, Biases, hiddens, freq_frag, activat
         act_func = tf.nn.softplus
     elif str.lower(activate_name) == 'sigmoid':
         act_func = tf.nn.sigmoid
+    elif str.lower(activate_name) == 'gelu':
+        act_func = gelu
     else:
         act_func = linear
 
@@ -1567,6 +1617,8 @@ def DNN_FourierBase(variable_input, Weights, Biases, hiddens, freq_frag, activat
         act_out = tf.nn.softplus
     elif str.lower(activateOut_name) == 'sigmoid':
         act_out = tf.nn.sigmoid
+    elif str.lower(activateOut_name) == 'gelu':
+        act_out = gelu
     else:
         act_out = linear
 
@@ -1665,6 +1717,8 @@ def DNN_WaveletBase(variable_input, Weights, Biases, hiddens, scale_frag, activa
         act_func = tf.nn.softplus
     elif str.lower(activate_name) == 'sigmoid':
         act_func = tf.nn.sigmoid
+    elif str.lower(activate_name) == 'gelu':
+        act_func = gelu
     else:
         act_func = linear
 
@@ -1688,6 +1742,8 @@ def DNN_WaveletBase(variable_input, Weights, Biases, hiddens, scale_frag, activa
         act_out = tf.nn.softplus
     elif str.lower(activateOut_name) == 'sigmoid':
         act_out = tf.nn.sigmoid
+    elif str.lower(activateOut_name) == 'gelu':
+        act_out = gelu
     else:
         act_out = linear
 

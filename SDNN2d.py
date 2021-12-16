@@ -19,7 +19,6 @@ import MS_LaplaceEqs
 import MS_BoltzmannEqs
 import MS_ConvectionEqs
 import matData2Laplace
-import matData2Laplacian
 import matData2Boltzmann
 import saveData
 import plotData
@@ -299,7 +298,11 @@ def solve_Multiscale_PDE(R):
                 Loss_it2NN = tf.reduce_mean(loss_it_variational)
 
             if R['opt2loss_udotu'] == 'with_orthogonal':
-                if R['opt2orthogonal'] == 1:
+                if R['opt2orthogonal'] == 0:
+                    # |Uc*Uf|^2-->0
+                    norm2UdU = tf.reduce_mean(tf.multiply(UNN_Normal, using_scale2orthogonal * UNN_Scale))
+                    UNN_dot_UNN = tf.square(norm2UdU)
+                elif R['opt2orthogonal'] == 1:
                     # |Uc*Uf|^2-->0
                     norm2UdU = tf.square(tf.multiply(UNN_Normal, using_scale2orthogonal * UNN_Scale))
                     UNN_dot_UNN = tf.reduce_mean(norm2UdU)
@@ -333,7 +336,7 @@ def solve_Multiscale_PDE(R):
                 UNN_top = UNN_Top_Normal + alpha * UNN_Top2Scale
                 Loss_bd2NN = tf.square(UNN_left - U_left) + tf.square(UNN_right - U_right) + \
                              tf.square(UNN_bottom - U_bottom) + tf.square(UNN_top - U_top)
-                Loss_bd2NNs = bd_penalty * Loss_bd2NN
+                Loss_bd2NNs = bd_penalty * tf.reduce_mean(Loss_bd2NN)
             else:
                 loss_bd_square2Normal = tf.square(UNN_Left_Normal - U_left) + tf.square(UNN_Right_Normal - U_right) + \
                                     tf.square(UNN_Bottom_Normal - U_bottom) + tf.square(UNN_Top_Normal - U_top)
@@ -359,7 +362,7 @@ def solve_Multiscale_PDE(R):
             PWB = penalty2WB * (regularSum2WBNormal + regularSum2WBScale)
             Loss2NN = Loss_it2NN + Loss_bd2NNs + Loss2UNN_dot_UNN + PWB
 
-            my_optimizer = tf.train.AdamOptimizer(in_learning_rate)
+            my_optimizer = tf.compat.v1.train.AdamOptimizer(in_learning_rate)
             if R['train_model'] == 1:
                 train_op1 = my_optimizer.minimize(Loss_it2NN, global_step=global_steps)
                 train_op2 = my_optimizer.minimize(Loss_bd2NNs, global_step=global_steps)
@@ -403,7 +406,7 @@ def solve_Multiscale_PDE(R):
         saveData.save_testData_or_solus2mat(test_xy_bach, dataName='testXY', outPath=R['FolderName'])
     else:
         if R['PDE_type'] == 'pLaplace_implicit':
-            test_xy_bach = matData2Laplacian.get_meshData2Laplace(equation_name=R['equa_name'], mesh_number=mesh_number)
+            test_xy_bach = matData2Laplace.get_meshData2Laplace(equation_name=R['equa_name'], mesh_number=mesh_number)
             size2batch = np.shape(test_xy_bach)[0]
             size2test = int(np.sqrt(size2batch))
         elif R['PDE_type'] == 'Possion_Boltzmann':
@@ -668,6 +671,8 @@ if __name__ == "__main__":
             R['batch_size2boundary'] = 300  # 边界训练数据的批大小
         elif R['mesh_number'] == 6:
             R['batch_size2boundary'] = 500  # 边界训练数据的批大小
+        elif R['mesh_number'] == 7:
+            R['batch_size2boundary'] = 500  # 边界训练数据的批大小
     elif R['PDE_type'] == 'pLaplace_explicit':
         # 频率设置
         epsilon = input('please input epsilon =')  # 由终端输入的会记录为字符串形式
@@ -689,9 +694,9 @@ if __name__ == "__main__":
     # R['loss_type'] = 'variational_loss3'       # PDE变分 1: grad U = grad Uc + grad Uf; 2: 变分形式是分开的
     # R['loss_type'] = 'variational_loss4'      # PDE变分 1: grad U = grad Uc + grad Uf; 2: 变分形式是分开的
 
-    # R['opt2orthogonal'] = 0                    # 0: L2-orthogonal+energy    1: L2-orthogonal    2:energy
-    R['opt2orthogonal'] = 1                      # 0: L2-orthogonal+energy    1: L2-orthogonal    2:energy
-    # R['opt2orthogonal'] = 2                    # 0: L2-orthogonal+energy    1: L2-orthogonal    2:energy
+    R['opt2orthogonal'] = 0                    # 0: integral L2-orthogonal   1: point-wise L2-orthogonal    2:energy
+    # R['opt2orthogonal'] = 1                  # 0: integral L2-orthogonal   1: point-wise L2-orthogonal    2:energy
+    # R['opt2orthogonal'] = 2                  # 0: integral L2-orthogonal   1: point-wise L2-orthogonal    2:energy
 
     R['hot_power'] = 1
 
@@ -822,8 +827,8 @@ if __name__ == "__main__":
     R['opt2loss_udotu'] = 'with_orthogonal'
     # R['opt2loss_udotu'] = 'without_orthogonal'
 
-    R['contrib_scale2orthogonal'] = 'with_contrib'
-    # R['contrib_scale2orthogonal'] = 'without_contrib'
+    # R['contrib_scale2orthogonal'] = 'with_contrib'
+    R['contrib_scale2orthogonal'] = 'without_contrib'
 
     # R['opt2loss_bd'] = 'unified_boundary'
     R['opt2loss_bd'] = 'individual_boundary'
