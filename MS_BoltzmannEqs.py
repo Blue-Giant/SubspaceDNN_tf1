@@ -17,18 +17,36 @@ def get_infos2Boltzmann_1D(in_dim=1, out_dim=1, region_a=0.0, region_b=1.0, inde
         kappa = lambda x: tf.ones_like(x)
         Aeps = lambda x: 1.0 / (2 + tf.cos(2 * np.pi * x / eps))
 
-        utrue = lambda x: x - tf.square(x) + (eps / (4*np.pi)) * tf.sin(np.pi * 2 * x / eps)
+        utrue = lambda x: x - x*x + (eps / (4*np.pi)) * tf.sin(np.pi * 2 * x / eps)
 
         ul = lambda x: tf.zeros_like(x)
 
         ur = lambda x: tf.zeros_like(x)
 
-        if index2p == 2:
+        if index2p == 1:
             f = lambda x: 2.0/(2 + tf.cos(2 * np.pi * x / eps)) + (4*np.pi*x/eps)*tf.sin(np.pi * 2 * x / eps)/\
                           ((2 + tf.cos(2 * np.pi * x / eps))*(2 + tf.cos(2 * np.pi * x / eps))) + x - tf.square(x) \
                           + (eps / (4*np.pi)) * tf.sin(np.pi * 2 * x / eps)
+        elif index2p == 2:
+            f = lambda x: 2.0/(2 + tf.cos(2 * np.pi * x / eps)) + \
+                          (4*np.pi*x/eps)*tf.sin(np.pi*2*x/eps)/((2 + tf.cos(2*np.pi*x/eps))*(2+tf.cos(2*np.pi*x/eps))) + \
+                          (x-x*x+(eps/(4*np.pi))*tf.sin(np.pi*2*x/eps))*(x-x*x+(eps/(4*np.pi))*tf.sin(np.pi*2*x/eps))
 
         return Aeps, kappa, utrue, ul, ur, f
+
+
+def get_force_side2Boltzmann_1D(x, index2p=2, eps=0.01, eqs_name=None):
+    utrue = x - x * x + (eps / (4 * np.pi)) * tf.sin(np.pi * 2 * x / eps)
+    ux = 1-2*x + 0.5*tf.cos(np.pi * 2 * x / eps)
+    uxx = - 2.0 - (np.pi/eps)*tf.sin(np.pi * 2 * x / eps)
+    fenmu2Aeps = 2 + tf.cos(2 * np.pi * x / eps)
+    Aeps = 1.0 / fenmu2Aeps
+    Aepsx = (2.0*np.pi/eps)*tf.sin(np.pi*2*x/eps)/(fenmu2Aeps*fenmu2Aeps)
+    if index2p == 1:
+        f = -1.0 * (Aepsx * ux + Aeps * uxx) + utrue
+    elif index2p == 2:
+        f = -1.0 * (Aepsx * ux + Aeps * uxx) + utrue*utrue
+    return f
 
 
 def get_infos2Boltzmann_2D(equa_name=None, intervalL=0.1, intervalR=1.0):

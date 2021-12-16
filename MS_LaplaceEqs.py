@@ -31,10 +31,7 @@ def get_infos2pLaplace_1D(in_dim=None, out_dim=None, intervalL=0, intervalR=1, i
             2 * np.pi * x / eps)) / (
                               4 * eps)
     elif index2p == 5:
-        f = lambda x: -1.0 * abs((2 * x - 1) ** 3) * ((2 + tf.cos(2 * np.pi * x / eps)) ** 2) * (
-                3 * np.pi * (2 * x - 1) * tf.sin(2 * np.pi * x / eps) - 4 * eps * tf.cos(
-            2 * np.pi * x / eps) - 8 * eps) / (
-                              8 * eps)
+        f = lambda x: -1.0*abs((2*x-1)**3)*((2+tf.cos(2*np.pi*x/eps))**2)*(3*np.pi*(2*x-1)*tf.sin(2*np.pi*x/eps)-4*eps*tf.cos(2*np.pi*x/eps)-8*eps)/(8*eps)
     elif index2p == 8:
         f = lambda x: ((1 - 2 * x) ** 6) * ((2 + tf.cos(2 * np.pi * x / eps)) ** 5) * (
                 7 * eps * tf.cos(2 * np.pi * x / eps) + 2 * (
