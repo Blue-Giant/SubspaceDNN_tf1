@@ -3,7 +3,7 @@ The codes are implemented in tensorflow--1.14 or 1.15 under the interpreter pyth
 
 # Corresponding Papers
 
-## A multi-scale DNN algorithm for nonlinear elliptic equations with multiple scales  
+## Subspace decomposition based DNN algorithm for elliptic type multi-scale PDEs 
 created by Xi-An Li, Zhi-Qin John, Xu and Lei Zhang
 
 [[Paper]](https://arxiv.org/pdf/2009.14597.pdf)
