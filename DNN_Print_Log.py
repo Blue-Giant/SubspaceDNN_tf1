@@ -212,69 +212,81 @@ def log_dictionary_3Scale(R_dic, log_fileout, actName2normal=None, actName2scale
 def dictionary2file(R_dic, log_fileout, actName2normal=None, actName2scale=None):
     log_string('PDE type for problem: %s\n' % (R_dic['PDE_type']), log_fileout)
     log_string('Equation name for problem: %s\n' % (R_dic['equa_name']), log_fileout)
-    log_string('The order to p-laplace: %s\n' % (R_dic['order2laplace']), log_fileout)
+    if R_dic['PDE_type'] == 'pLaplace' or R_dic['PDE_type'] == 'pLaplace_implicit' or \
+            R_dic['PDE_type'] == 'Possion_Boltzmann':
+        log_string('The order to multiscale: %s\n' % (R_dic['order2pLaplace_operator']), log_fileout)
+        log_string('The epsilon to multiscale: %s\n' % (R_dic['epsilon']), log_fileout)
 
-    log_string('Network model of solving normal-part: %s\n' % str(R_dic['model2normal']), log_fileout)
-    log_string('Network model of solving scale-part: %s\n' % str(R_dic['model2scale']), log_fileout)
-    log_string('The contribution factor for scale submodule: %s\n' % str(R_dic['contrib2scale']), log_fileout)
-    log_string('Activate function for normal-part network: %s\n' % str(actName2normal), log_fileout)
-    log_string('Activate function for scale-part network: %s\n' % str(actName2scale), log_fileout)
+    log_string('Network model for Normal-part: %s\n' % str(R_dic['model2Normal']), log_fileout)
+    log_string('Network model for Scale-part: %s\n' % str(R_dic['model2Scale']), log_fileout)
+    log_string('Hidden layers for Normal-part:%s\n' % str(R_dic['hidden2normal']), log_fileout)
+    log_string('Hidden layers for Scale-part:%s\n' % str(R_dic['hidden2scale']), log_fileout)
 
-    log_string('The frequency for scale-part network: %s\n' % (R_dic['freq2Scale']), log_fileout)
-    if R_dic['model2normal'] == 'DNN_FourierBase':
-        log_string('The frequency for normal-part network: %s\n' % (R_dic['freq2Normal']), log_fileout)
-        log_string('Repeating high frequency component for Normal: %s\n' % (R_dic['repeat_high_freq']),
-                             log_fileout)
-    log_string('hidden layer to normal:%s\n' % str(R_dic['hidden2normal']), log_fileout)
-    log_string('hidden layer to scale :%s\n' % str(R_dic['hidden2scale']), log_fileout)
-
-    if R_dic['PDE_type'] == 'pLaplace_implicit' or R_dic['PDE_type'] == 'pLaplace_explicit':
-        log_string('epsilon: %f\n' % (R_dic['epsilon']), log_fileout)  # 替换上两行
-
-    if R_dic['PDE_type'] == 'pLaplace_implicit':
-        log_string('The mesh_number: %f\n' % (R_dic['mesh_number']), log_fileout)  # 替换上两行
-
-    if R_dic['loss_type'] == 'variational_loss' or R_dic['loss_type'] == 'variational_loss2':
-        log_string('Loss function: variational loss with ' + str(R_dic['loss_type']) + '\n',
-                             log_fileout)
+    if R_dic['model2Normal'] == 'Fourier_DNN':
+        log_string('Input activate function for Normal-part network: %s\n' % '[Sin;Cos]', log_fileout)
     else:
-        log_string('Loss function: original function loss\n', log_fileout)
+        log_string('Input activate function for Normal-part network: %s\n' % str(actName2normal), log_fileout)
+    log_string('Hidden activate function for Normal-part network: %s\n' % str(actName2normal), log_fileout)
 
-    if (R_dic['train_opt']) == 0:
-        log_string('The model for training loss: %s\n' % 'total loss', log_fileout)
-    elif (R_dic['train_opt']) == 1:
-        log_string('The model for training loss: %s\n' % 'total loss + loss_it + loss_bd + loss_U2U', log_fileout)
-    elif (R_dic['train_opt']) == 2:
-        log_string('The model for training loss: %s\n' % 'total loss + loss_it + loss_bd', log_fileout)
+    if R_dic['model2Scale'] == 'Fourier_DNN':
+        log_string('Input activate function for Scale-part network: %s\n' % '[Sin;Cos]', log_fileout)
+    else:
+        log_string('Input activate function for Scale-part network: %s\n' % str(actName2scale), log_fileout)
+    log_string('Activate function for Scale-part network: %s\n' % str(actName2scale), log_fileout)
 
-    if R_dic['loss_type'] == 'variational_loss':
-        if R_dic['wavelet'] == 1:
-            log_string('Option of loss for coarse and fine is: L2 wavelet. \n', log_fileout)
-        elif R_dic['wavelet'] == 2:
-            log_string('Option of loss for coarse and fine is: Energy minimization. \n', log_fileout)
-        else:
-            log_string('Option of loss for coarse and fine is: L2 wavelet + Energy minimization. \n',
-                                 log_fileout)
+    log_string('The contribution factor of Scale-part network: %s\n' % str(R_dic['contrib2scale']), log_fileout)
 
-    if R_dic['loss_type'] == 'variational_loss2':
-        if R_dic['wavelet'] == 1:
-            log_string('Option of loss for coarse and fine is: L2 wavelet. \n', log_fileout)
+    if R_dic['model2Normal'] == 'Fourier_DNN':
+        log_string('The frequency to Normal-part network: %s\n' % (R_dic['freq2Normal']), log_fileout)
+        log_string('Repeating low frequency component for Normal-part!!\n', log_fileout)
+    log_string('The frequency to Scale-part network: %s\n' % (R_dic['freq2Scale']), log_fileout)
 
     if (R_dic['optimizer_name']).title() == 'Adam':
         log_string('optimizer:%s\n' % str(R_dic['optimizer_name']), log_fileout)
     else:
-        log_string('optimizer:%s  with momentum=%f\n' % (R_dic['optimizer_name'], R_dic['momentum']),
-                             log_fileout)
-
-    if R_dic['activate_stop'] != 0:
-        log_string('activate the stop_step and given_step= %s\n' % str(R_dic['max_epoch']), log_fileout)
-    else:
-        log_string('no activate the stop_step and given_step = default: %s\n' % str(R_dic['max_epoch']),
-                             log_fileout)
+        log_string('optimizer:%s with momentum=%f\n' % (R_dic['optimizer_name'], R_dic['momentum']), log_fileout)
 
     log_string('Init learning rate: %s\n' % str(R_dic['learning_rate']), log_fileout)
-
     log_string('Decay to learning rate: %s\n' % str(R_dic['learning_rate_decay']), log_fileout)
+
+    if R_dic['loss_type'] == 'variational_loss' or R_dic['loss_type'] == 'variational_loss2':
+        log_string('Loss function: ' + str(R_dic['loss_type']) + '\n', log_fileout)
+    else:
+        log_string('Loss function: L2 loss\n', log_fileout)
+
+    if R_dic['opt2loss_udotu'] == 'with_orthogonal':
+        log_string('With the orthogonality for coarse and fine. \n', log_fileout)
+        log_string(str(R_dic['contrib_scale2orthogonal']) + ' scale for the orthogonality of coarse and fine. \n',
+                   log_fileout)
+        if R_dic['loss_type'] == 'variational_loss' or R_dic['loss_type'] == 'L2_loss':
+            if R_dic['opt2orthogonal'] == 0:
+                log_string('The loss of product for coarse and fine: L2-orthogonal.\n', log_fileout)
+            if R_dic['opt2orthogonal'] == 1:
+                log_string('The loss of product for coarse and fine: Pointwise square orthogonal. \n', log_fileout)
+            elif R_dic['opt2orthogonal'] == 2:
+                log_string('The loss of product for coarse and fine: Energy-orthogonal. \n', log_fileout)
+            else:
+                log_string('The loss of product for coarse and fine: L2-orthogonal + Energy-orthogonal.\n', log_fileout)
+        elif R_dic['loss_type'] == 'variational_loss2':
+            if R_dic['opt2orthogonal'] == 1:
+                log_string('The loss of product for coarse and fine: L2-orthogonal. \n', log_fileout)
+    else:
+        log_string('Without the orthogonality for coarse and fine. \n', log_fileout)
+
+    if R_dic['opt2loss_bd'] == 'unified_boundary':
+        log_string('With the unified_boundary for coarse and fine. \n', log_fileout)
+    else:
+        log_string('With the individual_boundary for coarse and fine. \n', log_fileout)
+        log_string(str(R_dic['contrib_scale2boundary']) + ' scale for individual_boundary. \n', log_fileout)
+
+    if (R_dic['train_model']) == 'training_union':
+        log_string('The model for training loss: %s\n' % 'total loss', log_fileout)
+    elif (R_dic['train_opt']) == 'training_group4':
+        log_string('The model for training loss: %s\n' % 'total loss + loss_it + loss_bd + loss_UdotU', log_fileout)
+    elif (R_dic['train_opt']) == 'training_group3':
+        log_string('The model for training loss: %s\n' % 'total loss + loss_it + loss_bd', log_fileout)
+    elif (R_dic['train_opt']) == 'training_group2':
+        log_string('The model for training loss: %s\n' % 'total loss + loss_UdotU', log_fileout)
 
     log_string('Batch-size 2 interior: %s\n' % str(R_dic['batch_size2interior']), log_fileout)
     log_string('Batch-size 2 boundary: %s\n' % str(R_dic['batch_size2boundary']), log_fileout)
@@ -287,3 +299,7 @@ def dictionary2file(R_dic, log_fileout, actName2normal=None, actName2scale=None)
     else:
         log_string('The penalty of boundary will keep unchanged with training going on.\n', log_fileout)
 
+    if R_dic['activate_stop'] != 0:
+        log_string('activate the stop_step and given_step= %s\n' % str(R_dic['max_epoch']), log_fileout)
+    else:
+        log_string('no activate the stop_step and given_step = default: %s\n' % str(R_dic['max_epoch']), log_fileout)
