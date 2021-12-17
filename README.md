@@ -1,6 +1,10 @@
 # Requirement
 The codes are implemented in tensorflow--1.14 or 1.15 under the interpreter python3.6 or python3.7. Additionally, if the codes are runned on a Server, one should use the miniconda3 for python 3.7 or 3.6. However, if you dowmload the latest version of miniconda3 from https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh, you will get a miniconda3 based on python 3.8. Hence, you should redirect to the url https://docs.conda.io/en/latest/miniconda.html, then download the miniconda3 based on python3.7.
 
+Based on the class of Python, we have reconstructed the all codes for MscaleDNN architecture and submitted them in url https://github.com/Blue-Giant/SubspaceDNN_tf1Class
+
+It is need to point that the performance of class-based MscaleDNN is inferior to that of nonclass-based MscaleDNN. This is an open question.
+
 # Corresponding Papers
 
 ## Subspace decomposition based DNN algorithm for elliptic type multi-scale PDEs 
