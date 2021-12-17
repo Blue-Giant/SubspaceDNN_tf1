@@ -56,8 +56,10 @@ def dictionary_out2file(R_dic, log_fileout, actName2normal=None, actName2scale=N
         log_string('With the orthogonality for coarse and fine. \n', log_fileout)
         log_string(str(R_dic['contrib_scale2orthogonal']) + ' scale for the orthogonality of coarse and fine. \n', log_fileout)
         if R_dic['loss_type'] == 'variational_loss' or R_dic['loss_type'] == 'L2_loss':
+            if R_dic['opt2orthogonal'] == 0:
+                log_string('The loss of product for coarse and fine: L2-orthogonal.\n', log_fileout)
             if R_dic['opt2orthogonal'] == 1:
-                log_string('The loss of product for coarse and fine: L2-orthogonal. \n', log_fileout)
+                log_string('The loss of product for coarse and fine: Pointwise square orthogonal. \n', log_fileout)
             elif R_dic['opt2orthogonal'] == 2:
                 log_string('The loss of product for coarse and fine: Energy-orthogonal. \n', log_fileout)
             else:
@@ -160,8 +162,10 @@ def log_dictionary_3Scale(R_dic, log_fileout, actName2normal=None, actName2scale
         log_string('With the orthogonality for coarse and fine. \n', log_fileout)
         log_string(str(R_dic['contrib_scale2orthogonal']) + ' scale for the orthogonality of coarse and fine. \n', log_fileout)
         if R_dic['loss_type'] == 'variational_loss' or R_dic['loss_type'] == 'L2_loss':
-            if R_dic['opt2orthogonal'] == 1:
+            if R_dic['opt2orthogonal'] == 0:
                 log_string('The loss of product for coarse and fine: L2-orthogonal. \n', log_fileout)
+            elif R_dic['opt2orthogonal'] == 1:
+                log_string('The loss of product for coarse and fine: Pointwise square orthogonal. \n', log_fileout)
             elif R_dic['opt2orthogonal'] == 2:
                 log_string('The loss of product for coarse and fine: Energy-orthogonal. \n', log_fileout)
             else:
@@ -276,9 +280,9 @@ def dictionary2file(R_dic, log_fileout, actName2normal=None, actName2scale=None)
     log_string('Batch-size 2 boundary: %s\n' % str(R_dic['batch_size2boundary']), log_fileout)
 
     log_string('Initial boundary penalty: %s\n' % str(R_dic['init_boundary_penalty']), log_fileout)
-    if R['activate_penalty2bd_increase'] == 1:
+    if R_dic['activate_penalty2bd_increase'] == 1:
         log_string('The penalty of boundary will increase with training going on.\n', log_fileout)
-    elif R['activate_penalty2bd_increase'] == 2:
+    elif R_dic['activate_penalty2bd_increase'] == 2:
         log_string('The penalty of boundary will decrease with training going on.\n', log_fileout)
     else:
         log_string('The penalty of boundary will keep unchanged with training going on.\n', log_fileout)
