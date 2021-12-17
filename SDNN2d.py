@@ -18,8 +18,7 @@ import General_Laplace
 import MS_LaplaceEqs
 import MS_BoltzmannEqs
 import MS_ConvectionEqs
-import matData2Laplace
-import matData2Boltzmann
+import Load_data2Mat
 import saveData
 import plotData
 import DNN_Print_Log
@@ -406,7 +405,7 @@ def solve_Multiscale_PDE(R):
         saveData.save_testData_or_solus2mat(test_xy_bach, dataName='testXY', outPath=R['FolderName'])
     else:
         if R['PDE_type'] == 'pLaplace_implicit':
-            test_xy_bach = matData2Laplace.get_meshData2Laplace(equation_name=R['equa_name'], mesh_number=mesh_number)
+            test_xy_bach = Load_data2Mat.get_meshData2Laplace(equation_name=R['equa_name'], mesh_number=mesh_number)
             size2batch = np.shape(test_xy_bach)[0]
             size2test = int(np.sqrt(size2batch))
         elif R['PDE_type'] == 'Possion_Boltzmann':
@@ -414,7 +413,7 @@ def solve_Multiscale_PDE(R):
                 name2data_file = '11'
             else:
                 name2data_file = '01'
-            test_xy_bach = matData2Boltzmann.get_meshData2Boltzmann(domain_lr=name2data_file, mesh_number=mesh_number)
+            test_xy_bach = Load_data2Mat.get_meshData2Boltzmann(domain_lr=name2data_file, mesh_number=mesh_number)
             size2batch = np.shape(test_xy_bach)[0]
             size2test = int(np.sqrt(size2batch))
         elif R['PDE_type'] == 'Convection_diffusion':
@@ -422,11 +421,11 @@ def solve_Multiscale_PDE(R):
                 name2data_file = '11'
             else:
                 name2data_file = '01'
-            test_xy_bach = matData2Boltzmann.get_meshData2Boltzmann(domain_lr=name2data_file, mesh_number=mesh_number)
+            test_xy_bach = Load_data2Mat.get_meshData2Boltzmann(domain_lr=name2data_file, mesh_number=mesh_number)
             size2batch = np.shape(test_xy_bach)[0]
             size2test = int(np.sqrt(size2batch))
         else:
-            test_xy_bach = matData2Laplace.get_randData2Laplace(dim=input_dim, data_path='dataMat_highDim')
+            test_xy_bach = Load_data2Mat.get_randomData2mat(dim=input_dim, data_path='dataMat_highDim')
             size2batch = np.shape(test_xy_bach)[0]
             size2test = int(np.sqrt(size2batch))
 
@@ -510,44 +509,44 @@ def solve_Multiscale_PDE(R):
 
                 DNN_tools.print_and_log_test_one_epoch(test_mse2nn, test_rel2nn, log_out=log_fileout)
 
-        # ------------------- save the testing results into mat file and plot them -------------------------
-        saveData.save_trainLoss2mat_1actFunc(loss_it_all, loss_bd_all, loss_all, actName=act2Normal,
-                                             outPath=R['FolderName'])
-        saveData.save_train_MSE_REL2mat(train_mse_all, train_rel_all, actName=act2Normal, outPath=R['FolderName'])
+    # ------------------- save the testing results into mat file and plot them -------------------------
+    saveData.save_trainLoss2mat_1actFunc(loss_it_all, loss_bd_all, loss_all, actName=act2Normal,
+                                         outPath=R['FolderName'])
+    saveData.save_train_MSE_REL2mat(train_mse_all, train_rel_all, actName=act2Normal, outPath=R['FolderName'])
 
-        plotData.plotTrain_loss_1act_func(loss_it_all, lossType='loss_it', seedNo=R['seed'], outPath=R['FolderName'])
-        plotData.plotTrain_loss_1act_func(loss_bd_all, lossType='loss_bd', seedNo=R['seed'], outPath=R['FolderName'],
-                                          yaxis_scale=True)
-        plotData.plotTrain_loss_1act_func(loss_all, lossType='loss', seedNo=R['seed'], outPath=R['FolderName'])
-        plotData.plotTrain_loss_1act_func(loss_udu_all, lossType='udu', seedNo=R['seed'], outPath=R['FolderName'])
+    plotData.plotTrain_loss_1act_func(loss_it_all, lossType='loss_it', seedNo=R['seed'], outPath=R['FolderName'])
+    plotData.plotTrain_loss_1act_func(loss_bd_all, lossType='loss_bd', seedNo=R['seed'], outPath=R['FolderName'],
+                                      yaxis_scale=True)
+    plotData.plotTrain_loss_1act_func(loss_all, lossType='loss', seedNo=R['seed'], outPath=R['FolderName'])
+    plotData.plotTrain_loss_1act_func(loss_udu_all, lossType='udu', seedNo=R['seed'], outPath=R['FolderName'])
 
-        plotData.plotTrain_MSE_REL_1act_func(train_mse_all, train_rel_all, actName=act2Normal, seedNo=R['seed'],
-                                             outPath=R['FolderName'], yaxis_scale=True)
+    plotData.plotTrain_MSE_REL_1act_func(train_mse_all, train_rel_all, actName=act2Normal, seedNo=R['seed'],
+                                         outPath=R['FolderName'], yaxis_scale=True)
 
-        # ----------------- save test data to mat file and plot the testing results into figures -----------------------
-        if R['PDE_type'] == 'general_laplace' or R['PDE_type'] == 'pLaplace_explicit':
-            saveData.save_testData_or_solus2mat(u_true2test, dataName='Utrue', outPath=R['FolderName'])
+    # ----------------- save test data to mat file and plot the testing results into figures -----------------------
+    if R['PDE_type'] == 'general_laplace' or R['PDE_type'] == 'pLaplace_explicit':
+        saveData.save_testData_or_solus2mat(u_true2test, dataName='Utrue', outPath=R['FolderName'])
 
-        saveData.save_testData_or_solus2mat(utest_nn, dataName='test', outPath=R['FolderName'])
-        saveData.save_testData_or_solus2mat(utest_normal, dataName='normal', outPath=R['FolderName'])
-        saveData.save_testData_or_solus2mat(utest_freqs, dataName='scale', outPath=R['FolderName'])
+    saveData.save_testData_or_solus2mat(utest_nn, dataName='test', outPath=R['FolderName'])
+    saveData.save_testData_or_solus2mat(utest_normal, dataName='normal', outPath=R['FolderName'])
+    saveData.save_testData_or_solus2mat(utest_freqs, dataName='scale', outPath=R['FolderName'])
 
-        if R['hot_power'] == 0:
-            plotData.plot_scatter_solutions2test(u_true2test, utest_nn, test_xy_bach, actName1='Utrue',
-                                                 actName2=act2Normal, seedNo=R['seed'], outPath=R['FolderName'])
-        elif R['hot_power'] == 1:
-            plotData.plot_Hot_solution2test(u_true2test, size_vec2mat=size2test, actName='Utrue', seedNo=R['seed'],
-                                            outPath=R['FolderName'])
-            plotData.plot_Hot_solution2test(utest_nn, size_vec2mat=size2test, actName=act2Normal, seedNo=R['seed'],
-                                            outPath=R['FolderName'])
+    if R['hot_power'] == 0:
+        plotData.plot_scatter_solutions2test(u_true2test, utest_nn, test_xy_bach, actName1='Utrue',
+                                             actName2=act2Normal, seedNo=R['seed'], outPath=R['FolderName'])
+    elif R['hot_power'] == 1:
+        plotData.plot_Hot_solution2test(u_true2test, size_vec2mat=size2test, actName='Utrue', seedNo=R['seed'],
+                                        outPath=R['FolderName'])
+        plotData.plot_Hot_solution2test(utest_nn, size_vec2mat=size2test, actName=act2Normal, seedNo=R['seed'],
+                                        outPath=R['FolderName'])
 
-        saveData.save_testMSE_REL2mat(test_mse_all, test_rel_all, actName=act2Normal, outPath=R['FolderName'])
-        saveData.save_test_point_wise_err2mat(point_ERR2NN, actName=act2Normal, outPath=R['FolderName'])
+    saveData.save_testMSE_REL2mat(test_mse_all, test_rel_all, actName=act2Normal, outPath=R['FolderName'])
+    saveData.save_test_point_wise_err2mat(point_ERR2NN, actName=act2Normal, outPath=R['FolderName'])
 
-        plotData.plotTest_MSE_REL(test_mse_all, test_rel_all, test_epoch, actName=act2Normal, seedNo=R['seed'],
-                                  outPath=R['FolderName'], yaxis_scale=True)
-        plotData.plot_Hot_point_wise_err(point_ERR2NN, size_vec2mat=size2test, actName=act2Normal,
-                                         seedNo=R['seed'], outPath=R['FolderName'])
+    plotData.plotTest_MSE_REL(test_mse_all, test_rel_all, test_epoch, actName=act2Normal, seedNo=R['seed'],
+                              outPath=R['FolderName'], yaxis_scale=True)
+    plotData.plot_Hot_point_wise_err(point_ERR2NN, size_vec2mat=size2test, actName=act2Normal,
+                                     seedNo=R['seed'], outPath=R['FolderName'])
 
 
 if __name__ == "__main__":

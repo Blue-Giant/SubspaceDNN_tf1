@@ -202,3 +202,84 @@ def log_dictionary_3Scale(R_dic, log_fileout, actName2normal=None, actName2scale
         log_string('activate the stop_step and given_step= %s\n' % str(R_dic['max_epoch']), log_fileout)
     else:
         log_string('no activate the stop_step and given_step = default: %s\n' % str(R_dic['max_epoch']), log_fileout)
+
+
+# 记录字典中的一些设置
+def dictionary2file(R_dic, log_fileout, actName2normal=None, actName2scale=None):
+    log_string('PDE type for problem: %s\n' % (R_dic['PDE_type']), log_fileout)
+    log_string('Equation name for problem: %s\n' % (R_dic['equa_name']), log_fileout)
+    log_string('The order to p-laplace: %s\n' % (R_dic['order2laplace']), log_fileout)
+
+    log_string('Network model of solving normal-part: %s\n' % str(R_dic['model2normal']), log_fileout)
+    log_string('Network model of solving scale-part: %s\n' % str(R_dic['model2scale']), log_fileout)
+    log_string('The contribution factor for scale submodule: %s\n' % str(R_dic['contrib2scale']), log_fileout)
+    log_string('Activate function for normal-part network: %s\n' % str(actName2normal), log_fileout)
+    log_string('Activate function for scale-part network: %s\n' % str(actName2scale), log_fileout)
+
+    log_string('The frequency for scale-part network: %s\n' % (R_dic['freq2Scale']), log_fileout)
+    if R_dic['model2normal'] == 'DNN_FourierBase':
+        log_string('The frequency for normal-part network: %s\n' % (R_dic['freq2Normal']), log_fileout)
+        log_string('Repeating high frequency component for Normal: %s\n' % (R_dic['repeat_high_freq']),
+                             log_fileout)
+    log_string('hidden layer to normal:%s\n' % str(R_dic['hidden2normal']), log_fileout)
+    log_string('hidden layer to scale :%s\n' % str(R_dic['hidden2scale']), log_fileout)
+
+    if R_dic['PDE_type'] == 'pLaplace_implicit' or R_dic['PDE_type'] == 'pLaplace_explicit':
+        log_string('epsilon: %f\n' % (R_dic['epsilon']), log_fileout)  # 替换上两行
+
+    if R_dic['PDE_type'] == 'pLaplace_implicit':
+        log_string('The mesh_number: %f\n' % (R_dic['mesh_number']), log_fileout)  # 替换上两行
+
+    if R_dic['loss_type'] == 'variational_loss' or R_dic['loss_type'] == 'variational_loss2':
+        log_string('Loss function: variational loss with ' + str(R_dic['loss_type']) + '\n',
+                             log_fileout)
+    else:
+        log_string('Loss function: original function loss\n', log_fileout)
+
+    if (R_dic['train_opt']) == 0:
+        log_string('The model for training loss: %s\n' % 'total loss', log_fileout)
+    elif (R_dic['train_opt']) == 1:
+        log_string('The model for training loss: %s\n' % 'total loss + loss_it + loss_bd + loss_U2U', log_fileout)
+    elif (R_dic['train_opt']) == 2:
+        log_string('The model for training loss: %s\n' % 'total loss + loss_it + loss_bd', log_fileout)
+
+    if R_dic['loss_type'] == 'variational_loss':
+        if R_dic['wavelet'] == 1:
+            log_string('Option of loss for coarse and fine is: L2 wavelet. \n', log_fileout)
+        elif R_dic['wavelet'] == 2:
+            log_string('Option of loss for coarse and fine is: Energy minimization. \n', log_fileout)
+        else:
+            log_string('Option of loss for coarse and fine is: L2 wavelet + Energy minimization. \n',
+                                 log_fileout)
+
+    if R_dic['loss_type'] == 'variational_loss2':
+        if R_dic['wavelet'] == 1:
+            log_string('Option of loss for coarse and fine is: L2 wavelet. \n', log_fileout)
+
+    if (R_dic['optimizer_name']).title() == 'Adam':
+        log_string('optimizer:%s\n' % str(R_dic['optimizer_name']), log_fileout)
+    else:
+        log_string('optimizer:%s  with momentum=%f\n' % (R_dic['optimizer_name'], R_dic['momentum']),
+                             log_fileout)
+
+    if R_dic['activate_stop'] != 0:
+        log_string('activate the stop_step and given_step= %s\n' % str(R_dic['max_epoch']), log_fileout)
+    else:
+        log_string('no activate the stop_step and given_step = default: %s\n' % str(R_dic['max_epoch']),
+                             log_fileout)
+
+    log_string('Init learning rate: %s\n' % str(R_dic['learning_rate']), log_fileout)
+
+    log_string('Decay to learning rate: %s\n' % str(R_dic['learning_rate_decay']), log_fileout)
+
+    log_string('Batch-size 2 interior: %s\n' % str(R_dic['batch_size2interior']), log_fileout)
+    log_string('Batch-size 2 boundary: %s\n' % str(R_dic['batch_size2boundary']), log_fileout)
+
+    log_string('Initial boundary penalty: %s\n' % str(R_dic['init_boundary_penalty']), log_fileout)
+    if R['activate_penalty2bd_increase'] == 1:
+        log_string('The penalty of boundary will increase with training going on.\n', log_fileout)
+    elif R['activate_penalty2bd_increase'] == 2:
+        log_string('The penalty of boundary will decrease with training going on.\n', log_fileout)
+    else:
+        log_string('The penalty of boundary will keep unchanged with training going on.\n', log_fileout)
+
