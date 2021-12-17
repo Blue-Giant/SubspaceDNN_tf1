@@ -6,7 +6,7 @@ The codes are implemented in tensorflow--1.14 or 1.15 under the interpreter pyth
 ## Subspace decomposition based DNN algorithm for elliptic type multi-scale PDEs 
 created by Xi-An Li, Zhi-Qin John, Xu and Lei Zhang
 
-[[Paper]](https://arxiv.org/pdf/2009.14597.pdf)
+[[Paper]](https://arxiv.org/pdf/2112.06660.pdf)
 ## Ideas 
 Combining the subspace decompositon in multiscale numerical method and MscaleDNN architecture, the Subsapce decomposed DNN algorithm is developed in this work. In terms of MscaleDNN, one can rdirect to https://github.com/Blue-Giant/MscaleDNN_tf1 .
 
