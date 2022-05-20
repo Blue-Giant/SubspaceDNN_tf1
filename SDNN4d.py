@@ -12,14 +12,95 @@ import shutil
 import time
 import DNN_base
 import DNN_tools
-import DNN_Print_Log
 import MS_LaplaceEqs
 import MS_BoltzmannEqs
 import General_Laplace
-import Load_data2Mat
+import matData2Laplacian
+import matData2Boltzmann
 import DNN_data
 import saveData
 import plotData
+
+
+# 记录字典中的一些设置
+def dictionary_out2file(R_dic, log_fileout, actName2normal=None, actName2scale=None):
+    DNN_tools.log_string('PDE type for problem: %s\n' % (R_dic['PDE_type']), log_fileout)
+    DNN_tools.log_string('Equation name for problem: %s\n' % (R_dic['equa_name']), log_fileout)
+    DNN_tools.log_string('The order to p-laplace: %s\n' % (R_dic['order2laplace']), log_fileout)
+
+    DNN_tools.log_string('Network model of solving normal-part: %s\n' % str(R_dic['model2normal']), log_fileout)
+    DNN_tools.log_string('Network model of solving scale-part: %s\n' % str(R_dic['model2scale']), log_fileout)
+    DNN_tools.log_string('The contribution factor for scale submodule: %s\n' % str(R_dic['contrib2scale']), log_fileout)
+    DNN_tools.log_string('Activate function for normal-part network: %s\n' % str(actName2normal), log_fileout)
+    DNN_tools.log_string('Activate function for scale-part network: %s\n' % str(actName2scale), log_fileout)
+
+    DNN_tools.log_string('The frequency for scale-part network: %s\n' % (R_dic['freq2Scale']), log_fileout)
+    if str(R_dic['model2normal']) == 'DNN_FourierBase':
+        DNN_tools.log_string('The frequency for normal-part network: %s\n' % (R_dic['freq2Normal']), log_fileout)
+        DNN_tools.log_string('Repeating high frequency component for Normal: %s\n' % (R_dic['repeat_high_freq']),
+                             log_fileout)
+
+    DNN_tools.log_string('hidden layer to normal:%s\n' % str(R_dic['hidden2normal']), log_fileout)
+    DNN_tools.log_string('hidden layer to scale :%s\n' % str(R_dic['hidden2scale']), log_fileout)
+
+    if R_dic['PDE_type'] == 'pLaplace_implicit' or R_dic['PDE_type'] == 'pLaplace_explicit':
+        DNN_tools.log_string('epsilon: %f\n' % (R_dic['epsilon']), log_fileout)  # 替换上两行
+
+    if R_dic['PDE_type'] == 'pLaplace_implicit':
+        DNN_tools.log_string('The mesh_number: %f\n' % (R_dic['mesh_number']), log_fileout)  # 替换上两行
+
+    if R_dic['variational_loss'] == 1 or R_dic['variational_loss'] == 2:
+        DNN_tools.log_string('Loss function: variational loss with ' + str(R_dic['variational_loss']) + '\n',
+                             log_fileout)
+    else:
+        DNN_tools.log_string('Loss function: original function loss\n', log_fileout)
+
+    if (R_dic['train_opt']) == 0:
+        DNN_tools.log_string('The model for training loss: %s\n' % 'total loss', log_fileout)
+    elif (R_dic['train_opt']) == 1:
+        DNN_tools.log_string('The model for training loss: %s\n' % 'total loss + loss_it + loss_bd + loss_U2U', log_fileout)
+    elif (R_dic['train_opt']) == 2:
+        DNN_tools.log_string('The model for training loss: %s\n' % 'total loss + loss_it + loss_bd', log_fileout)
+
+    if R_dic['variational_loss'] == 1:
+        if R_dic['wavelet'] == 1:
+            DNN_tools.log_string('Option of loss for coarse and fine is: L2 wavelet. \n', log_fileout)
+        elif R_dic['wavelet'] == 2:
+            DNN_tools.log_string('Option of loss for coarse and fine is: Energy minimization. \n', log_fileout)
+        else:
+            DNN_tools.log_string('Option of loss for coarse and fine is: L2 wavelet + Energy minimization. \n',
+                                 log_fileout)
+
+    if R_dic['variational_loss'] == 2:
+        if R_dic['wavelet'] == 1:
+            DNN_tools.log_string('Option of loss for coarse and fine is: L2 wavelet. \n', log_fileout)
+
+    if (R_dic['optimizer_name']).title() == 'Adam':
+        DNN_tools.log_string('optimizer:%s\n' % str(R_dic['optimizer_name']), log_fileout)
+    else:
+        DNN_tools.log_string('optimizer:%s  with momentum=%f\n' % (R_dic['optimizer_name'], R_dic['momentum']),
+                             log_fileout)
+
+    if R_dic['activate_stop'] != 0:
+        DNN_tools.log_string('activate the stop_step and given_step= %s\n' % str(R_dic['max_epoch']), log_fileout)
+    else:
+        DNN_tools.log_string('no activate the stop_step and given_step = default: %s\n' % str(R_dic['max_epoch']),
+                             log_fileout)
+
+    DNN_tools.log_string('Init learning rate: %s\n' % str(R_dic['learning_rate']), log_fileout)
+
+    DNN_tools.log_string('Decay to learning rate: %s\n' % str(R_dic['learning_rate_decay']), log_fileout)
+
+    DNN_tools.log_string('Batch-size 2 interior: %s\n' % str(R_dic['batch_size2interior']), log_fileout)
+    DNN_tools.log_string('Batch-size 2 boundary: %s\n' % str(R_dic['batch_size2boundary']), log_fileout)
+
+    DNN_tools.log_string('Initial boundary penalty: %s\n' % str(R_dic['init_boundary_penalty']), log_fileout)
+    if R['activate_penalty2bd_increase'] == 1:
+        DNN_tools.log_string('The penalty of boundary will increase with training going on.\n', log_fileout)
+    elif R['activate_penalty2bd_increase'] == 2:
+        DNN_tools.log_string('The penalty of boundary will decrease with training going on.\n', log_fileout)
+    else:
+        DNN_tools.log_string('The penalty of boundary will keep unchanged with training going on.\n', log_fileout)
 
 
 def solve_Multiscale_PDE(R):
@@ -29,7 +110,7 @@ def solve_Multiscale_PDE(R):
 
     outfile_name1 = '%s%s.txt' % ('log2', 'train')
     log_fileout_NN = open(os.path.join(log_out_path, outfile_name1), 'w')  # 在这个路径下创建并打开一个可写的 log_train.txt文件
-    DNN_Print_Log.dictionary2file(R, log_fileout_NN, actName2normal=R['act_name2NN1'], actName2scale=R['act_name2NN2'])
+    dictionary_out2file(R, log_fileout_NN, actName2normal=R['act_name2NN1'], actName2scale=R['act_name2NN2'])
 
     # 一般 laplace 问题需要的设置
     batchsize_it = R['batch_size2interior']
@@ -90,20 +171,20 @@ def solve_Multiscale_PDE(R):
         Ws_Scale, B_Scale = DNN_base.Xavier_init_NN(input_dim, out_dim, hidden2scale, flag2Scale)
 
     global_steps = tf.Variable(0, trainable=False)
-    with tf.compat.v1.device('/gpu:%s' % (R['gpuNo'])):
+    with tf.device('/gpu:%s' % (R['gpuNo'])):
         with tf.variable_scope('vscope', reuse=tf.AUTO_REUSE):
-            XYZS_it = tf.compat.v1.placeholder(tf.float32, name='XYZS_it', shape=[None, input_dim])
-            XYZS00 = tf.compat.v1.placeholder(tf.float32, name='XYZS00', shape=[None, input_dim])
-            XYZS01 = tf.compat.v1.placeholder(tf.float32, name='XYZS01', shape=[None, input_dim])
-            XYZS10 = tf.compat.v1.placeholder(tf.float32, name='XYZS10', shape=[None, input_dim])
-            XYZS11 = tf.compat.v1.placeholder(tf.float32, name='XYZS11', shape=[None, input_dim])
-            XYZS20 = tf.compat.v1.placeholder(tf.float32, name='XYZS20', shape=[None, input_dim])
-            XYZS21 = tf.compat.v1.placeholder(tf.float32, name='XYZS21', shape=[None, input_dim])
-            XYZS30 = tf.compat.v1.placeholder(tf.float32, name='XYZS30', shape=[None, input_dim])
-            XYZS31 = tf.compat.v1.placeholder(tf.float32, name='XYZS31', shape=[None, input_dim])
-            bd_penalty = tf.compat.v1.placeholder_with_default(input=1e2, shape=[], name='bd_p')
-            penalty2powU = tf.compat.v1.placeholder_with_default(input=1.0, shape=[], name='p_powU')
-            in_learning_rate = tf.compat.v1.placeholder_with_default(input=1e-5, shape=[], name='lr')
+            XYZS_it = tf.placeholder(tf.float32, name='XYZS_it', shape=[None, input_dim])
+            XYZS00 = tf.placeholder(tf.float32, name='XYZS00', shape=[None, input_dim])
+            XYZS01 = tf.placeholder(tf.float32, name='XYZS01', shape=[None, input_dim])
+            XYZS10 = tf.placeholder(tf.float32, name='XYZS10', shape=[None, input_dim])
+            XYZS11 = tf.placeholder(tf.float32, name='XYZS11', shape=[None, input_dim])
+            XYZS20 = tf.placeholder(tf.float32, name='XYZS20', shape=[None, input_dim])
+            XYZS21 = tf.placeholder(tf.float32, name='XYZS21', shape=[None, input_dim])
+            XYZS30 = tf.placeholder(tf.float32, name='XYZS30', shape=[None, input_dim])
+            XYZS31 = tf.placeholder(tf.float32, name='XYZS31', shape=[None, input_dim])
+            bd_penalty = tf.placeholder_with_default(input=1e2, shape=[], name='bd_p')
+            penalty2powU = tf.placeholder_with_default(input=1.0, shape=[], name='p_powU')
+            in_learning_rate = tf.placeholder_with_default(input=1e-5, shape=[], name='lr')
 
             if R['model2normal'] == 'DNN':
                 UNN_Normal = DNN_base.DNN(XYZS_it, Ws_Normal, B_Normal, hidden2normal, activate_name=act_func1)
@@ -280,7 +361,7 @@ def solve_Multiscale_PDE(R):
 
             Loss2NN = Loss_it2NN + Loss_bds + Loss2UNN_dot_UNN + PWB
 
-            my_optimizer = tf.compat.v1.train.AdamOptimizer(in_learning_rate)
+            my_optimizer = tf.train.AdamOptimizer(in_learning_rate)
             if R['variational_loss'] == 1:
                 if R['train_opt'] == 1:
                     train_op1 = my_optimizer.minimize(Loss_it2NN, global_step=global_steps)
@@ -344,15 +425,15 @@ def solve_Multiscale_PDE(R):
         test_bach_size = 1600
         size2test = 40
         mat_data_path = 'dataMat_highDim'
-        test_xyzs_bach = Load_data2Mat.get_randomData2mat(dim=input_dim, data_path=mat_data_path)
+        test_xyzs_bach = matData2Laplacian.get_randData2Laplace(dim=input_dim, data_path=mat_data_path)
         saveData.save_testData_or_solus2mat(test_xyzs_bach, dataName='testXYZS', outPath=R['FolderName'])
 
     # ConfigProto 加上allow_soft_placement=True就可以使用 gpu 了
-    config = tf.compat.v1.ConfigProto(allow_soft_placement=True)  # 创建sess的时候对sess进行参数配置
+    config = tf.ConfigProto(allow_soft_placement=True)  # 创建sess的时候对sess进行参数配置
     config.gpu_options.allow_growth = True              # True是让TensorFlow在运行过程中动态申请显存，避免过多的显存占用。
     config.allow_soft_placement = True                  # 当指定的设备不存在时，允许选择一个存在的设备运行。比如gpu不存在，自动降到cpu上运行
-    with tf.compat.v1.Session(config=config) as sess:
-        sess.run(tf.compat.v1.global_variables_initializer())
+    with tf.Session(config=config) as sess:
+        sess.run(tf.global_variables_initializer())
         tmp_lr = learning_rate
         for i_epoch in range(R['max_epoch'] + 1):
             xyzs_it_batch = DNN_data.rand_it(batchsize_it, input_dim, region_a=region_lb, region_b=region_rt)
@@ -454,46 +535,46 @@ def solve_Multiscale_PDE(R):
 
                 DNN_tools.print_and_log_test_one_epoch(test_mse2nn, test_rel2nn, log_out=log_fileout_NN)
 
-    # ------------------- save the testing results into mat file and plot them -------------------------
-    saveData.save_trainLoss2mat_1actFunc(lossIt_all2NN, lossBD_all2NN, loss_all2NN, actName=act_func1,
-                                         outPath=R['FolderName'])
-    saveData.save_train_MSE_REL2mat(train_mse_all2NN, train_rel_all2NN, actName=act_func1,
-                                    outPath=R['FolderName'])
+        # ------------------- save the testing results into mat file and plot them -------------------------
+        saveData.save_trainLoss2mat_1actFunc(lossIt_all2NN, lossBD_all2NN, loss_all2NN, actName=act_func1,
+                                             outPath=R['FolderName'])
+        saveData.save_train_MSE_REL2mat(train_mse_all2NN, train_rel_all2NN, actName=act_func1,
+                                        outPath=R['FolderName'])
 
-    plotData.plotTrain_loss_1act_func(lossIt_all2NN, lossType='loss_it', seedNo=R['seed'], outPath=R['FolderName'])
-    plotData.plotTrain_loss_1act_func(lossBD_all2NN, lossType='loss_bd', seedNo=R['seed'], outPath=R['FolderName'],
-                                      yaxis_scale=True)
-    plotData.plotTrain_loss_1act_func(loss_all2NN, lossType='loss', seedNo=R['seed'], outPath=R['FolderName'])
-    plotData.plotTrain_loss_1act_func(UDU_NN, lossType='udu', seedNo=R['seed'], outPath=R['FolderName'])
+        plotData.plotTrain_loss_1act_func(lossIt_all2NN, lossType='loss_it', seedNo=R['seed'], outPath=R['FolderName'])
+        plotData.plotTrain_loss_1act_func(lossBD_all2NN, lossType='loss_bd', seedNo=R['seed'], outPath=R['FolderName'],
+                                          yaxis_scale=True)
+        plotData.plotTrain_loss_1act_func(loss_all2NN, lossType='loss', seedNo=R['seed'], outPath=R['FolderName'])
+        plotData.plotTrain_loss_1act_func(UDU_NN, lossType='udu', seedNo=R['seed'], outPath=R['FolderName'])
 
-    plotData.plotTrain_MSE_REL_1act_func(train_mse_all2NN, train_rel_all2NN, actName=act_func1, seedNo=R['seed'],
-                                         outPath=R['FolderName'], yaxis_scale=True)
+        plotData.plotTrain_MSE_REL_1act_func(train_mse_all2NN, train_rel_all2NN, actName=act_func1, seedNo=R['seed'],
+                                             outPath=R['FolderName'], yaxis_scale=True)
 
-    # ----------------- save test data to mat file and plot the testing results into figures -----------------------
-    if R['PDE_type'] == 'general_laplace' or R['PDE_type'] == 'pLaplace':
-        saveData.save_testData_or_solus2mat(u_true2test, dataName='Utrue', outPath=R['FolderName'])
+        # ----------------- save test data to mat file and plot the testing results into figures -----------------------
+        if R['PDE_type'] == 'general_laplace' or R['PDE_type'] == 'pLaplace':
+            saveData.save_testData_or_solus2mat(u_true2test, dataName='Utrue', outPath=R['FolderName'])
 
-    saveData.save_testData_or_solus2mat(utest_nn, dataName='test', outPath=R['FolderName'])
-    saveData.save_testData_or_solus2mat(utest_normal, dataName='normal', outPath=R['FolderName'])
-    saveData.save_testData_or_solus2mat(utest_freqs, dataName='scale', outPath=R['FolderName'])
+        saveData.save_testData_or_solus2mat(utest_nn, dataName='test', outPath=R['FolderName'])
+        saveData.save_testData_or_solus2mat(utest_normal, dataName='normal', outPath=R['FolderName'])
+        saveData.save_testData_or_solus2mat(utest_freqs, dataName='scale', outPath=R['FolderName'])
 
-    if R['hot_power'] == 1:
-        # ----------------------------------------------------------------------------------------------------------
-        #                                      绘制解的热力图(真解和DNN解)
-        # ----------------------------------------------------------------------------------------------------------
-        plotData.plot_Hot_solution2test(u_true2test, size_vec2mat=size2test, actName='Utrue',
-                                        seedNo=R['seed'], outPath=R['FolderName'])
-        plotData.plot_Hot_solution2test(utest_nn, size_vec2mat=size2test, actName=act_func1,
-                                        seedNo=R['seed'], outPath=R['FolderName'])
+        if R['hot_power'] == 1:
+            # ----------------------------------------------------------------------------------------------------------
+            #                                      绘制解的热力图(真解和DNN解)
+            # ----------------------------------------------------------------------------------------------------------
+            plotData.plot_Hot_solution2test(u_true2test, size_vec2mat=size2test, actName='Utrue',
+                                            seedNo=R['seed'], outPath=R['FolderName'])
+            plotData.plot_Hot_solution2test(utest_nn, size_vec2mat=size2test, actName=act_func1,
+                                            seedNo=R['seed'], outPath=R['FolderName'])
 
-    saveData.save_testMSE_REL2mat(test_mse_all2NN, test_rel_all2NN, actName=act_func1, outPath=R['FolderName'])
-    plotData.plotTest_MSE_REL(test_mse_all2NN, test_rel_all2NN, test_epoch, actName=act_func1, seedNo=R['seed'],
-                              outPath=R['FolderName'], yaxis_scale=True)
+        saveData.save_testMSE_REL2mat(test_mse_all2NN, test_rel_all2NN, actName=act_func1, outPath=R['FolderName'])
+        plotData.plotTest_MSE_REL(test_mse_all2NN, test_rel_all2NN, test_epoch, actName=act_func1, seedNo=R['seed'],
+                                  outPath=R['FolderName'], yaxis_scale=True)
 
-    saveData.save_test_point_wise_err2mat(point_ERR2NN, actName=act_func1, outPath=R['FolderName'])
+        saveData.save_test_point_wise_err2mat(point_ERR2NN, actName=act_func1, outPath=R['FolderName'])
 
-    plotData.plot_Hot_point_wise_err(point_ERR2NN, size_vec2mat=size2test, actName=act_func1,
-                                     seedNo=R['seed'], outPath=R['FolderName'])
+        plotData.plot_Hot_point_wise_err(point_ERR2NN, size_vec2mat=size2test, actName=act_func1,
+                                         seedNo=R['seed'], outPath=R['FolderName'])
 
 
 if __name__ == "__main__":

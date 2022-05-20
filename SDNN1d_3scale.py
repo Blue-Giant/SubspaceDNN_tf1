@@ -27,8 +27,8 @@ def solve_Multiscale_PDE(R):
     if not os.path.exists(log_out_path):  # 判断路径是否已经存在
         os.mkdir(log_out_path)  # 无 log_out_path 路径，创建一个 log_out_path 路径
 
-    outfile_name1 = '%s%s.txt' % ('log2', 'train')
-    log_fileout = open(os.path.join(log_out_path, outfile_name1), 'w')  # 在这个路径下创建并打开一个可写的 log_train.txt文件
+    outfile_name = '%s%s.txt' % ('log2', 'train')
+    log_fileout = open(os.path.join(log_out_path, outfile_name), 'w')  # 在这个路径下创建并打开一个可写的 log_train.txt文件
     DNN_Print_Log.log_dictionary_3Scale(R, log_fileout, actName2normal=R['actHidden_name2Normal'],
                                         actName2scale=R['actHidden_name2Scale'])
 
@@ -136,11 +136,14 @@ def solve_Multiscale_PDE(R):
             elif R['model2Normal'] == 'Fourier_DNN':
                 freq = R['freq2Normal']
                 UNN_Normal = DNN_base.DNN_FourierBase(X_it, Ws_Normal, Bs_Normal, hidden2normal, freq,
-                                                      activate_name=act2Normal, repeat_Highfreq=False)
+                                                      activate_name=act2Normal, repeat_Highfreq=False,
+                                                      sFourier=R['sFourier2Normal'])
                 UNNLeft_Normal = DNN_base.DNN_FourierBase(X_left, Ws_Normal, Bs_Normal, hidden2normal, freq,
-                                                          activate_name=act2Normal, repeat_Highfreq=False)
+                                                          activate_name=act2Normal, repeat_Highfreq=False,
+                                                          sFourier=R['sFourier2Normal'])
                 UNNRight_Normal = DNN_base.DNN_FourierBase(X_right, Ws_Normal, Bs_Normal, hidden2normal, freq,
-                                                           activate_name=act2Normal, repeat_Highfreq=False)
+                                                           activate_name=act2Normal, repeat_Highfreq=False,
+                                                           sFourier=R['sFourier2Normal'])
 
             freqs1 = R['freq2Scale1']
             if R['model2Scale1'] == 'Scale_DNN':
@@ -159,11 +162,11 @@ def solve_Multiscale_PDE(R):
                                                            activateIn_name=act2Scale, activate_name=act2Scale)
             elif R['model2Scale1'] == 'Fourier_DNN':
                 UNN_scale1 = DNN_base.DNN_FourierBase(X_it, Ws_Scale1, B2NN_scale1, hidden2scale1, freqs1,
-                                                      activate_name=act2Scale)
+                                                      activate_name=act2Scale, sFourier=R['sFourier2Scale1'])
                 UNNLeft_scale1 = DNN_base.DNN_FourierBase(X_left, Ws_Scale1, B2NN_scale1, hidden2scale1, freqs1,
-                                                          activate_name=act2Scale)
+                                                          activate_name=act2Scale, sFourier=R['sFourier2Scale1'])
                 UNNRight_scale1 = DNN_base.DNN_FourierBase(X_right, Ws_Scale1, B2NN_scale1, hidden2scale1, freqs1,
-                                                           activate_name=act2Scale)
+                                                           activate_name=act2Scale, sFourier=R['sFourier2Scale1'])
 
             freqs2 = R['freq2Scale2']
             if R['model2Scale2'] == 'Scale_DNN':
@@ -182,19 +185,19 @@ def solve_Multiscale_PDE(R):
                                                            activateIn_name=act2Scale, activate_name=act2Scale)
             elif R['model2Scale2'] == 'Fourier_DNN':
                 UNN_scale2 = DNN_base.DNN_FourierBase(X_it, Ws_Scale2, Bs_Scale2, hidden2scale2, freqs2,
-                                                      activate_name=act2Scale)
+                                                      activate_name=act2Scale, sFourier=R['sFourier2Scale2'])
                 UNNLeft_scale2 = DNN_base.DNN_FourierBase(X_left, Ws_Scale2, Bs_Scale2, hidden2scale2, freqs2,
-                                                          activate_name=act2Scale)
+                                                          activate_name=act2Scale, sFourier=R['sFourier2Scale2'])
                 UNNRight_scale2 = DNN_base.DNN_FourierBase(X_right, Ws_Scale2, Bs_Scale2, hidden2scale2, freqs2,
-                                                           activate_name=act2Scale)
+                                                           activate_name=act2Scale, sFourier=R['sFourier2Scale2'])
 
             # alpha2 = 0.01 * alpha
             UNN = UNN_Normal + R['contrib2scale1']*UNN_scale1 + R['contrib2scale2']*UNN_scale2
 
             # 变分形式的loss of interior，训练得到的 U_NN1 是 * 行 1 列, 因为 一个点对(x,y) 得到一个 u 值
-            dUNN_Normal = tf.gradients(UNN_Normal, X_it)[0]    # * 行 1 列
+            dUNN_Normal = tf.gradients(UNN_Normal, X_it)[0]     # * 行 1 列
             dUNN_scale1= tf.gradients(UNN_scale1, X_it)[0]      # * 行 1 列
-            dUNN_scale2 = tf.gradients(UNN_scale2, X_it)[0]  # * 行 1 列
+            dUNN_scale2 = tf.gradients(UNN_scale2, X_it)[0]     # * 行 1 列
             if R['loss_type'] == 'variational_loss':
                 dUNN = tf.add(tf.add(dUNN_Normal, R['contrib2scale1']*dUNN_scale1), R['contrib2scale2']*dUNN_scale2)
                 if R['PDE_type'] == 'pLaplace':
@@ -239,16 +242,23 @@ def solve_Multiscale_PDE(R):
 
                 Loss_it2NN = tf.reduce_mean(loss_it_NN)
 
-            if R['opt2orthogonal'] == 1:
-                # # |Uc*Uf|^2-->0 Uc 和 Uf 是两个列向量 形状为(*,1)
-                norm2UdU01 = tf.square(tf.multiply(UNN_Normal, using_scale1_orthogonal * UNN_scale1))
-                norm2UdU02 = tf.square(tf.multiply(UNN_Normal, using_scale2_orthogonal * UNN_scale2))
-                norm2UdU12 = tf.square(tf.multiply(using_scale1_orthogonal * UNN_scale1, using_scale2_orthogonal * UNN_scale2))
-                UNN_dot_UNN = tf.reduce_mean(norm2UdU01) + tf.reduce_mean(norm2UdU02) + tf.reduce_mean(norm2UdU12)
-
             if R['opt2loss_udotu'] == 'with_orthogonal':
+                if R['opt2orthogonal'] == 0:
+                    # # |Uc*Uf|^2-->0 Uc 和 Uf 是两个列向量 形状为(*,1)
+                    norm2UdU01 = tf.reduce_mean(tf.multiply(UNN_Normal, using_scale1_orthogonal * UNN_scale1))
+                    norm2UdU02 = tf.reduce_mean(tf.multiply(UNN_Normal, using_scale2_orthogonal * UNN_scale2))
+                    norm2UdU12 = tf.reduce_mean(tf.multiply(using_scale1_orthogonal * UNN_scale1, using_scale2_orthogonal * UNN_scale2))
+                    UNN_dot_UNN = tf.square(norm2UdU01) + tf.square(norm2UdU02) + tf.square(norm2UdU12)
+                elif R['opt2orthogonal'] == 1:  #
+                    # # |Uc*Uf|^2-->0 Uc 和 Uf 是两个列向量 形状为(*,1)
+                    norm2UdU01 = tf.square(tf.multiply(UNN_Normal, using_scale1_orthogonal * UNN_scale1))
+                    norm2UdU02 = tf.square(tf.multiply(UNN_Normal, using_scale2_orthogonal * UNN_scale2))
+                    norm2UdU12 = tf.square(tf.multiply(using_scale1_orthogonal * UNN_scale1, using_scale2_orthogonal * UNN_scale2))
+                    UNN_dot_UNN = tf.reduce_mean(norm2UdU01) + tf.reduce_mean(norm2UdU02) + tf.reduce_mean(norm2UdU12)
+
                 Loss2UNN_dot_UNN = UdotU_penalty * UNN_dot_UNN
             else:
+                UNN_dot_UNN = tf.constant(0.0)
                 Loss2UNN_dot_UNN = tf.constant(0.0)
 
             U_left = tf.reshape(u_left(X_left), shape=[-1, 1])
@@ -315,7 +325,6 @@ def solve_Multiscale_PDE(R):
             train_rel_NN = train_mse_NN / tf.reduce_mean(tf.square(U_true))
 
     t0 = time.time()
-    # 空列表, 使用 append() 添加元素
     loss_it_all, loss_bd_all, loss_all, loss_udu_all, train_mse_all, train_rel_all = [], [], [], [], [], []
     test_mse_all, test_rel_all = [], []
     test_epoch = []
@@ -510,7 +519,7 @@ if __name__ == "__main__":
         R['epsilon1'] = float(epsilon1)              # 字符串转为浮点
 
         epsilon2 = input('please input epsilon2 =')  # 由终端输入的会记录为字符串形式
-        R['epsilon2'] = float(epsilon2)  # 字符串转为浮点
+        R['epsilon2'] = float(epsilon2)              # 字符串转为浮点
 
         # 问题幂次
         order2pLaplace = input('please input the order(a int number) to p-laplace:')
@@ -520,25 +529,25 @@ if __name__ == "__main__":
     R['input_dim'] = 1                         # 输入维数，即问题的维数(几元问题)
     R['output_dim'] = 1                        # 输出维数
     R['loss_type'] = 'variational_loss'        # PDE变分
-    # R['loss_type'] = 'variational_loss2'  # PDE变分
-    # R['loss_type'] = 'L2_loss'                # L2 loss
-    # R['opt2orthogonal'] = 0                   # 0: L2 orthogonal+energy    1: orthogonal    2:energy
-    R['opt2orthogonal'] = 1                     # 0: L2 orthogonal+energy    1: orthogonal    2:energy
-    # R['opt2orthogonal'] = 2                   # 0: L2 orthogonal+energy    1: orthogonal    2:energy
+    # R['loss_type'] = 'variational_loss2'     # PDE变分
+    # R['loss_type'] = 'L2_loss'               # L2 loss
+    R['opt2orthogonal'] = 0                    # 0: L2 orthogonal(LO)  1: Ponitwise square orthogonal(PSO)    2:energy
+    # R['opt2orthogonal'] = 1                  # 0: L2 orthogonal(LO)  1: Ponitwise square orthogonal(PSO)    2:energy
+    # R['opt2orthogonal'] = 2                  # 0: L2 orthogonal(LO)  1: Ponitwise square orthogonal(PSO)    2:energy
 
     # ---------------------------- Setup of DNN -------------------------------
-    R['batch_size2interior'] = 3000             # 内部训练数据的批大小
-    R['batch_size2boundary'] = 500              # 边界训练数据大小
+    R['batch_size2interior'] = 3000            # 内部训练数据的批大小
+    R['batch_size2boundary'] = 500             # 边界训练数据大小
 
     R['regular_wb_model'] = 'L0'
     # R['regular_wb_model'] = 'L1'
     # R['regular_wb_model'] = 'L2'
-    R['penalty2weight_biases'] = 0.000     # Regularization parameter for weights
-    # R['penalty2weight_biases'] = 0.001   # Regularization parameter for weights
-    # R['penalty2weight_biases'] = 0.0025  # Regularization parameter for weights
+    R['penalty2weight_biases'] = 0.000        # Regularization parameter for weights
+    # R['penalty2weight_biases'] = 0.001      # Regularization parameter for weights
+    # R['penalty2weight_biases'] = 0.0025     # Regularization parameter for weights
 
     R['activate_penalty2bd_increase'] = 1
-    R['init_boundary_penalty'] = 100                           # Regularization parameter for boundary conditions
+    R['init_boundary_penalty'] = 100          # Regularization parameter for boundary conditions
 
     R['activate_powSolus_increase'] = 0
     if R['activate_powSolus_increase'] == 1:
@@ -553,32 +562,26 @@ if __name__ == "__main__":
     R['learning_rate'] = 2e-4                             # 学习率
     R['learning_rate_decay'] = 5e-5                       # 学习率 decay
     R['optimizer_name'] = 'Adam'                          # 优化器
-    R['train_model'] = 'training_union'  # 训练模式, 一个 loss 联结训练
-    # R['train_model'] = 1
-    # R['train_model'] = 3
-    # R['train_model'] = 4
+    R['train_model'] = 'training_union'                   # 训练模式, 一个 loss 联结训练
 
-    # R['model2Normal'] = 'DNN'  # 使用的网络模型
+    # R['model2Normal'] = 'DNN'                           # 使用的网络模型
     # R['model2Normal'] = 'Scale_DNN'
     # R['model2Normal'] = 'Adapt_Scale_DNN'
     R['model2Normal'] = 'Fourier_DNN'
-    # R['model2Normal'] = 'Sin+Cos_DNN'
 
-    # R['model2Scale1'] = 'DNN'                         # 使用的网络模型
+    # R['model2Scale1'] = 'DNN'                           # 使用的网络模型
     # R['model2Scale1'] = 'Scale_DNN'
     # R['model2Scale1'] = 'Adapt_Scale_DNN'
-    # R['model2Scale1'] = 'Sin+Cos_DNN'
     R['model2Scale1'] = 'Fourier_DNN'
 
-    # R['model2Scale2'] = 'DNN'                         # 使用的网络模型
+    # R['model2Scale2'] = 'DNN'                           # 使用的网络模型
     # R['model2Scale2'] = 'Scale_DNN'
     # R['model2Scale2'] = 'Adapt_Scale_DNN'
-    # R['model2Scale2'] = 'Sin+Cos_DNN'
     R['model2Scale2'] = 'Fourier_DNN'
 
     # normal 和 scale 网络的总参数数目:12520 + 29360 = 41880
     if R['model2Normal'] == 'Fourier_DNN':
-        R['hidden2normal'] = (50, 80, 60, 60, 40)  # 1*50+100*80+80*60+60*60+60*40+40*1 = 18890个参数
+        R['hidden2normal'] = (50, 80, 60, 60, 40)           # 1*50+100*80+80*60+60*60+60*40+40*1 = 18890个参数
     else:
         R['hidden2normal'] = (100, 80, 60, 60, 40)          # 1*100+100*80+80*60+60*60+60*40+40*1 = 18940个参数
         # R['hidden2normal'] = (200, 100, 100, 80, 80, 50)
@@ -587,25 +590,25 @@ if __name__ == "__main__":
 
     if R['model2Scale1'] == 'Fourier_DNN':
         if R['epsilon1'] == 0.1:
-            R['hidden2scale1'] = (125, 80, 60, 60, 40)        # 1*125+250*80+80*60+60*60+60*40+40*1=30925 个参数
+            R['hidden2scale1'] = (125, 80, 60, 60, 40)      # 1*125+250*80+80*60+60*60+60*40+40*1=30925 个参数
         else:
-            R['hidden2scale1'] = (225, 200, 150, 150, 100)    # 1*225+450*200+200*150+150*150+150*100+100*1=157825 个参数
+            R['hidden2scale1'] = (225, 200, 150, 150, 100)  # 1*225+450*200+200*150+150*150+150*100+100*1=157825 个参数
     else:
         if R['epsilon1'] == 0.1:
-            R['hidden2scale1'] = (160, 100, 80, 80, 60)        # 1*200+200*60+60*60+60*50+50*40+40*1=20840 个参数
+            R['hidden2scale1'] = (160, 100, 80, 80, 60)     # 1*200+200*60+60*60+60*50+50*40+40*1=20840 个参数
         else:
-            R['hidden2scale1'] = (250, 200, 150, 150, 100)       # 1*250+250*60+60*60+60*60+60*50+50*1=25500 个参数
+            R['hidden2scale1'] = (250, 200, 150, 150, 100)  # 1*250+250*60+60*60+60*60+60*50+50*1=25500 个参数
 
     if R['model2Scale2'] == 'Fourier_DNN':
         if R['epsilon2'] == 0.1:
-            R['hidden2scale2'] = (125, 80, 60, 60, 40)       # 1*125+250*80+80*60+60*60+60*40+40*1=30925 个参数
+            R['hidden2scale2'] = (125, 80, 60, 60, 40)      # 1*125+250*80+80*60+60*60+60*40+40*1=30925 个参数
         else:
-            R['hidden2scale2'] = (225, 200, 150, 150, 100)    # 1*225+450*200+200*150+150*150+150*100+100*1=157825 个参数
+            R['hidden2scale2'] = (225, 200, 150, 150, 100)  # 1*225+450*200+200*150+150*150+150*100+100*1=157825 个参数
     else:
         if R['epsilon2'] == 0.1:
-            R['hidden2scale2'] = (160, 100, 80, 80, 60)        # 1*200+200*60+60*60+60*50+50*40+40*1=20840 个参数
+            R['hidden2scale2'] = (160, 100, 80, 80, 60)     # 1*200+200*60+60*60+60*50+50*40+40*1=20840 个参数
         else:
-            R['hidden2scale2'] = (250, 200, 150, 150, 100)       # 1*250+250*60+60*60+60*60+60*50+50*1=25500 个参数
+            R['hidden2scale2'] = (250, 200, 150, 150, 100)  # 1*250+250*60+60*60+60*60+60*50+50*1=25500 个参数
 
     # 激活函数的选择
     # R['actHidden_name2Normal'] = 'relu'
@@ -621,6 +624,21 @@ if __name__ == "__main__":
     # R['actHidden_name2Scale'] = 'tanh'
     # R['actHidden_name2Scale'] = 'elu'
     # R['actHidden_name2Scale'] = 'phi'
+
+    if R['model2Normal'] == 'Fourier_DNN' and R['actHidden_name2Normal'] == 'tanh':
+        R['sFourier2Normal'] = 1.0
+    elif R['model2Normal'] == 'Fourier_DNN' and R['actHidden_name2Normal'] == 's2relu':
+        R['sFourier2Normal'] = 0.5
+
+    if R['model2Scale1'] == 'Fourier_DNN' and R['actHidden_name2Scale'] == 'tanh':
+        R['sFourier2Scale1'] = 1.0
+    elif R['model2Scale1'] == 'Fourier_DNN' and R['actHidden_name2Scale'] == 's2relu':
+        R['sFourier2Scale1'] = 0.5
+
+    if R['model2Scale2'] == 'Fourier_DNN' and R['actHidden_name2Scale'] == 'tanh':
+        R['sFourier2Scale2'] = 1.0
+    elif R['model2Scale2'] == 'Fourier_DNN' and R['actHidden_name2Scale'] == 's2relu':
+        R['sFourier2Scale2'] = 0.5
 
     R['plot_ongoing'] = 0
     R['subfig_type'] = 0
@@ -670,8 +688,8 @@ if __name__ == "__main__":
     # R['opt2loss_bd'] = 'unified_boundary'
     R['opt2loss_bd'] = 'individual_boundary'
 
-    # R['contrib_scale2boundary'] = 'with_contrib'
-    R['contrib_scale2boundary'] = 'without_contrib'
+    R['contrib_scale2boundary'] = 'with_contrib'
+    # R['contrib_scale2boundary'] = 'without_contrib'
 
     if R['opt2loss_bd'] == 'unified_boundary':
         R['contrib_scale2boundary'] = 'with_contrib'

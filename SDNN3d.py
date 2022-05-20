@@ -552,8 +552,8 @@ if __name__ == "__main__":
 
     # 文件保存路径设置
     # store_file = 'Laplace3D'
-    store_file = 'pLaplace3D'
-    # store_file = 'Boltzmann3D'
+    # store_file = 'pLaplace3D'
+    store_file = 'Boltzmann3D'
     # store_file = 'Convection3D'
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     sys.path.append(BASE_DIR)
@@ -665,7 +665,7 @@ if __name__ == "__main__":
     R['optimizer_name'] = 'Adam'                          # 优化器
     R['learning_rate'] = 2e-4                             # 学习率
     R['learning_rate_decay'] = 5e-5                       # 学习率 decay
-    R['train_model'] = 'training_union'  # 训练模式, 一个 loss 联结训练
+    R['train_model'] = 'training_union'                   # 训练模式, 一个 loss 联结训练
     # R['train_model'] = 'training_group1'                # 训练模式, 多个 loss 组团训练
     # R['train_model'] = 'training_group2'
     # R['train_model'] = 'training_group3'

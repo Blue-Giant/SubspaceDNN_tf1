@@ -35,6 +35,7 @@ def solve_Multiscale_PDE(R):
     # 问题需要的设置
     batchsize_it = R['batch_size2interior']
     batchsize_bd = R['batch_size2boundary']
+
     bd_penalty_init = R['init_boundary_penalty']         # Regularization parameter for boundary conditions
     lr_decay = R['learning_rate_decay']
     learning_rate = R['learning_rate']
@@ -516,19 +517,20 @@ if __name__ == "__main__":
         order = float(order2pLaplace)
         R['order2pLaplace_operator'] = order
 
-    R['input_dim'] = 1                        # 输入维数，即问题的维数(几元问题)
-    R['output_dim'] = 1                       # 输出维数
-    R['loss_type'] = 'variational_loss'       # PDE变分
-    # R['loss_type'] = 'variational_loss2'    # PDE变分
-    # R['loss_type'] = 'L2_loss'              # L2 loss
-
-    R['opt2orthogonal'] = 0                   # 0: L2-orthogonal(LO)  1: pointwise square orthogonal(PSO)  2:energy
-    # R['opt2orthogonal'] = 1                 # 0: L2-orthogonal(LO)  1: pointwise square orthogonal(PSO)  2:energy
-    # R['opt2orthogonal'] = 2                 # 0: L2-orthogonal(LO)  1: pointwise square orthogonal(PSO)  2:energy
+    R['input_dim'] = 1                           # 输入维数，即问题的维数(几元问题)
+    R['output_dim'] = 1                          # 输出维数
 
     # ---------------------------- Setup of DNN -------------------------------
     R['batch_size2interior'] = 3000              # 内部训练数据的批大小
     R['batch_size2boundary'] = 500               # 边界训练数据大小
+
+    R['loss_type'] = 'variational_loss'          # PDE变分
+    # R['loss_type'] = 'variational_loss2'       # PDE变分
+    # R['loss_type'] = 'L2_loss'                 # L2 loss
+
+    R['opt2orthogonal'] = 0                      # 0: L2-orthogonal(LO)  1: pointwise square orthogonal(PSO)  2:energy
+    # R['opt2orthogonal'] = 1                    # 0: L2-orthogonal(LO)  1: pointwise square orthogonal(PSO)  2:energy
+    # R['opt2orthogonal'] = 2                    # 0: L2-orthogonal(LO)  1: pointwise square orthogonal(PSO)  2:energy
 
     R['regular_wb_model'] = 'L0'
     # R['regular_wb_model'] = 'L1'
@@ -559,10 +561,10 @@ if __name__ == "__main__":
     # R['train_model'] = 'training_group3'
     # R['train_model'] = 'training_group4'
 
-    # R['model2Normal'] = 'DNN'                   # 使用的网络模型
+    R['model2Normal'] = 'DNN'                   # 使用的网络模型
     # R['model2Normal'] = 'Scale_DNN'
     # R['model2Normal'] = 'Adapt_scale_DNN'
-    R['model2Normal'] = 'Fourier_DNN'
+    # R['model2Normal'] = 'Fourier_DNN'
 
     # R['model2Scale'] = 'DNN'                    # 使用的网络模型
     # R['model2Scale'] = 'Scale_DNN'
@@ -696,15 +698,19 @@ if __name__ == "__main__":
     if R['loss_type'] == 'variational_loss' or R['loss_type'] == 'L2_loss':
         R['init_penalty2orthogonal'] = 20.0
         # R['init_penalty2orthogonal'] = 25.0
-        # R['contrib2scale'] = 0.01
-        R['contrib2scale'] = 0.05
+        R['contrib2scale'] = 0.01
+        # R['contrib2scale'] = 0.05
         # R['contrib2scale'] = 0.1
+        # R['contrib2scale'] = 0.5
+        # R['contrib2scale'] = 1.0
     elif R['loss_type'] == 'variational_loss2':
         R['init_penalty2orthogonal'] = 20.0
         # R['init_penalty2orthogonal'] = 25.0
-        # R['contrib2scale'] = 0.01
-        R['contrib2scale'] = 0.05
+        R['contrib2scale'] = 0.01
+        # R['contrib2scale'] = 0.05
         # R['contrib2scale'] = 0.1
+        # R['contrib2scale'] = 0.5
+        # R['contrib2scale'] = 1.0
 
     R['opt2loss_udotu'] = 'with_orthogonal'
     # R['opt2loss_udotu'] = 'without_orthogonal'

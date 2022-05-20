@@ -805,7 +805,7 @@ if __name__ == "__main__":
         R['sFourier2Scale'] = 0.5
 
     if R['loss_type'] == 'L2_loss':
-        R['actName2Normal'] = 'tanh'
+        R['actHidden_name2Scale'] = 'tanh'
 
     if R['loss_type'] == 'variational_loss2':
         # R['init_penalty2orthogonal'] = 1.0
