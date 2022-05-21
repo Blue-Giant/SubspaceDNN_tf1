@@ -1,3 +1,7 @@
+"""
+@author: LXA
+ Date: 2020 年 5 月 31 日
+"""
 import DNN_tools
 import matplotlib.pyplot as plt
 import numpy as np
@@ -195,12 +199,22 @@ def plotTrain_MSE_REL_1act_func(data2mse, data2rel, actName=None, seedNo=1000, o
         fntmp = '%s/%strainErr_%s' % (outPath, seedNo, 'sReLU')
     elif str.lower(actName) == 'sin':
         fntmp = '%s/%strainErr_%s' % (outPath, seedNo, 'sin')
+    elif str.lower(actName) == 'sinaddcos':
+        fntmp = '%s/%strainErr_%s' % (outPath, seedNo, 'sincos')
     elif str.lower(actName) == 's2relu':
         fntmp = '%s/%strainErr_%s' % (outPath, seedNo, 's2ReLU')
+    elif str.lower(actName) == 's3relu':
+        fntmp = '%s/%strainErr_%s' % (outPath, seedNo, 's3ReLU')
+    elif str.lower(actName) == 'csrelu':
+        fntmp = '%s/%strainErr_%s' % (outPath, seedNo, 'CsReLU')
     elif str.lower(actName) == 'relu':
         fntmp = '%s/%strainErr_%s' % (outPath, seedNo, 'ReLU')
     elif str.lower(actName) == 'elu':
         fntmp = '%s/%strainErr_%s' % (outPath, seedNo, 'elu')
+    elif str.lower(actName) == 'gelu':
+        fntmp = '%s/%strainErr_%s' % (outPath, seedNo, 'gelu')
+    elif str.lower(actName) == 'mgelu':
+        fntmp = '%s/%strainErr_%s' % (outPath, seedNo, 'mgelu')
     elif str.lower(actName) == 'tanh':
         fntmp = '%s/%strainErr_%s' % (outPath, seedNo, 'tanh')
     elif str.lower(actName) == 'sintanh':
@@ -209,10 +223,18 @@ def plotTrain_MSE_REL_1act_func(data2mse, data2rel, actName=None, seedNo=1000, o
         fntmp = '%s/%strainErr_%s' % (outPath, seedNo, 'singauss')
     elif str.lower(actName) == 'gauss':
         fntmp = '%s/%strainErr_%s' % (outPath, seedNo, 'gauss')
+    elif str.lower(actName) == 'mish':
+        fntmp = '%s/%strainErr_%s' % (outPath, seedNo, 'mish')
+    elif str.lower(actName) == 'gcu':
+        fntmp = '%s/%strainErr_%s' % (outPath, seedNo, 'gcu')
     elif str.lower(actName) == 'mexican':
         fntmp = '%s/%strainErr_%s' % (outPath, seedNo, 'mexican')
     elif str.lower(actName) == 'modify_mexican':
         fntmp = '%s/%s_%s' % (outPath, seedNo, 'Ummexican2test')
+    elif str.lower(actName) == 'sin_modify_mexican':
+        fntmp = '%s/%s_%s' % (outPath, seedNo, 'Usm_mexican2test')
+    else:
+        fntmp = '%s/%s_%s' % (outPath, seedNo, actName)
     DNN_tools.mySaveFig(plt, fntmp, ax=ax, isax=1, iseps=0)
 
 
@@ -418,11 +440,11 @@ def plotTest_MSEs_RELs_3act_funcs(mse2data1, mse2data2, mse2data3, rel2data1, re
     DNN_tools.mySaveFig(plt, fntmp, ax=ax, isax=1, iseps=0)
 
 
-def plot_2solutions2test(exact_solu2test, predict_solu2test,  coord_points2test=None,
-                         batch_size2test=1000, seedNo=1000, outPath=None, subfig_type=1):
+def plot_2solutions2test(exact_solu2test, predict_solu2test, coord_points2test=None, batch_size2test=1000, seedNo=1000,
+                         outPath=None, subfig_type=0, scatter_fig=True, actName=None):
     if subfig_type == 1:
         plt.figure(figsize=(16, 10), dpi=98)
-        fig, ax = plt.subplots(1, 1)  # fig, ax = plt.subplots(a,b)用来控制子图个数：a为行数，b为列数。
+        fig, ax = plt.subplots(1, 1)         # fig, ax = plt.subplots(a,b)用来控制子图个数：a为行数，b为列数。
         ax.plot(coord_points2test, exact_solu2test, 'b-.', label='true')
         ax.plot(coord_points2test, predict_solu2test, 'g:', label='predict')
         ax.legend(fontsize=10)
@@ -505,11 +527,14 @@ def plot_2solutions2test(exact_solu2test, predict_solu2test,  coord_points2test=
         fntmp = '%s/%ssolu2test' % (outPath, seedNo)
         DNN_tools.mySaveFig(plt, fntmp, ax=ax, isax=1, iseps=0)
     else:
-        # fig11 = plt.figure(figsize=(10, 8))
         fig11 = plt.figure(figsize=(9, 6.5))
         ax = plt.gca()
-        ax.plot(coord_points2test, exact_solu2test, 'b-.', label='exact')
-        ax.plot(coord_points2test, predict_solu2test, 'r:', label='s2ReLU')
+        if scatter_fig:
+            ax.scatter(coord_points2test, exact_solu2test, 'b-.', label='exact')
+            ax.scatter(coord_points2test, predict_solu2test, 'r:', label=actName)
+        else:
+            ax.plot(coord_points2test, exact_solu2test, 'b-.', label='exact')
+            ax.plot(coord_points2test, predict_solu2test, 'r:', label=actName)
         # box = ax.get_position()
         # ax.set_position([box.x0, box.y0, box.width, box.height * 0.8])
         ax.legend(loc='right', bbox_to_anchor=(0.9, 1.05), ncol=4, fontsize=12)
@@ -517,6 +542,26 @@ def plot_2solutions2test(exact_solu2test, predict_solu2test,  coord_points2test=
         ax.set_ylabel('u', fontsize=14)
         fntmp = '%s/%ssolu2test' % (outPath, seedNo)
         DNN_tools.mySaveFig(plt, fntmp, ax=ax, isax=1, iseps=0)
+
+
+def plot_2scatter_solus2test(exact_solu, predict_solu, coord_points=None, batch_size=100, seedNo=1000, outPath=None,
+                             actName=None):
+    # fig11 = plt.figure(figsize=(9, 6.5))
+    # plt.scatter(coord_points, exact_solu, s=batch_size, c='b', marker='.', label='Exact')
+    # plt.scatter(coord_points, predict_solu, s=batch_size, c='r', marker='1', label='UNN')
+    # plt.legend(loc='right', bbox_to_anchor=(0.9, 1.05), ncol=4, fontsize=12)
+    # plt.xlabel('x', fontsize=14)
+    # plt.ylabel('y', fontsize=14)
+
+    fig11 = plt.figure(figsize=(9, 6.5))
+    ax = plt.gca()
+    ax.scatter(coord_points, exact_solu, s=batch_size, c='b', marker='.', label='Exact')
+    ax.scatter(coord_points, predict_solu, s=batch_size, c='r', marker='1', label='UNN2'+actName)
+    ax.legend(loc='right', bbox_to_anchor=(0.9, 1.05), ncol=4, fontsize=12)
+    ax.set_xlabel('x', fontsize=14)
+    ax.set_ylabel('solus', fontsize=14)
+    fntmp = '%s/%ssolu2test' % (outPath, seedNo)
+    DNN_tools.mySaveFig(plt, fntmp, ax=ax, isax=1, iseps=0)
 
 
 def plot_3solutions2test(exact_solu2test, s2ReLU_solu2test, sReLU_solu2test, ReLU_solu2test,
@@ -641,10 +686,26 @@ def plot_Hot_solution2test(solu2test, size_vec2mat=20, actName=None, seedNo=1000
         fntmp = '%s/%s_%s' % (outPath, seedNo, 'UsReLU2test')
     elif str.lower(actName) == 's2relu':
         fntmp = '%s/%s_%s' % (outPath, seedNo, 'Us2ReLU2test')
+    elif str.lower(actName) == 's3relu':
+        fntmp = '%s/%s_%s' % (outPath, seedNo, 'Us3ReLU2test')
+    elif str.lower(actName) == 'csrelu':
+        fntmp = '%s/%s_%s' % (outPath, seedNo, 'UCsReLU2test')
     elif str.lower(actName) == 'relu':
         fntmp = '%s/%s_%s' % (outPath, seedNo, 'UReLU2test')
+    elif str.lower(actName) == 'gelu':
+        fntmp = '%s/%s_%s' % (outPath, seedNo, 'UGeLU2test')
+    elif str.lower(actName) == 'mgelu':
+        fntmp = '%s/%s_%s' % (outPath, seedNo, 'UMGeLU2test')
+    elif str.lower(actName) == 'sin':
+        fntmp = '%s/%s_%s' % (outPath, seedNo, 'USin2test')
+    elif str.lower(actName) == 'sinaddcos':
+        fntmp = '%s/%s_%s' % (outPath, seedNo, 'USinCos2test')
     elif str.lower(actName) == 'tanh':
         fntmp = '%s/%s_%s' % (outPath, seedNo, 'Utanh2test')
+    elif str.lower(actName) == 'mish':
+        fntmp = '%s/%s_%s' % (outPath, seedNo, 'Umish2test')
+    elif str.lower(actName) == 'gcu':
+        fntmp = '%s/%s_%s' % (outPath, seedNo, 'Ugcu2test')
     elif str.lower(actName) == 'sintanh':
         fntmp = '%s/%s_%s' % (outPath, seedNo, 'Ustanh2test')
     elif str.lower(actName) == 'singauss':
@@ -655,6 +716,8 @@ def plot_Hot_solution2test(solu2test, size_vec2mat=20, actName=None, seedNo=1000
         fntmp = '%s/%s_%s' % (outPath, seedNo, 'Umexican2test')
     elif str.lower(actName) == 'modify_mexican':
         fntmp = '%s/%s_%s' % (outPath, seedNo, 'Ummexican2test')
+    elif str.lower(actName) == 'sin_modify_mexican':
+        fntmp = '%s/%s_%s' % (outPath, seedNo, 'Usm-mexican2test')
     DNN_tools.mySaveFig(plt, fntmp, ax=ax, isax=1, iseps=0)
 
 
@@ -724,23 +787,60 @@ def plot_Hot_point_wise_err(point_wise_err, size_vec2mat=20, actName=None, seedN
         fntmp = '%s/%spErr_%s' % (outPath, seedNo, 'sReLU')
     elif str.lower(actName) == 's2relu':
         fntmp = '%s/%spErr_%s' % (outPath, seedNo, 's2ReLU')
+    elif str.lower(actName) == 's3relu':
+        fntmp = '%s/%spErr_%s' % (outPath, seedNo, 's3ReLU')
+    elif str.lower(actName) == 'csrelu':
+        fntmp = '%s/%spErr_%s' % (outPath, seedNo, 'CsReLU')
     elif str.lower(actName) == 'relu':
         fntmp = '%s/%spErr_%s' % (outPath, seedNo, 'ReLU')
+    elif str.lower(actName) == 'gelu':
+        fntmp = '%s/%spErr_%s' % (outPath, seedNo, 'GeLU')
+    elif str.lower(actName) == 'mgelu':
+        fntmp = '%s/%spErr_%s' % (outPath, seedNo, 'MGeLU')
     elif str.lower(actName) == 'tanh':
         fntmp = '%s/%spErr_%s' % (outPath, seedNo, 'tanh')
     elif str.lower(actName) == 'sin':
         fntmp = '%s/%spErr_%s' % (outPath, seedNo, 'sin')
+    elif str.lower(actName) == 'sinaddcos':
+        fntmp = '%s/%spErr_%s' % (outPath, seedNo, 'sinAddcos')
     elif str.lower(actName) == 'sintanh':
         fntmp = '%s/%spErr_%s' % (outPath, seedNo, 'stanh')
     elif str.lower(actName) == 'singauss':
         fntmp = '%s/%spErr_%s' % (outPath, seedNo, 'sgauss')
     elif str.lower(actName) == 'gauss':
         fntmp = '%s/%spErr_%s' % (outPath, seedNo, 'gauss')
+    elif str.lower(actName) == 'mish':
+        fntmp = '%s/%spErr_%s' % (outPath, seedNo, 'mish')
+    elif str.lower(actName) == 'gcu':
+        fntmp = '%s/%spErr_%s' % (outPath, seedNo, 'gcu')
     elif str.lower(actName) == 'mexican':
         fntmp = '%s/%spErr_%s' % (outPath, seedNo, 'mexican')
     elif str.lower(actName) == 'modify_mexican':
         fntmp = '%s/%spErr_%s' % (outPath, seedNo, 'mmexican')
+    elif str.lower(actName) == 'sin_modify_mexican':
+        fntmp = '%s/%spErr_%s' % (outPath, seedNo, 'sm-mexican')
 
     DNN_tools.mySaveFig(plt, fntmp, ax=ax, isax=1, iseps=0)
 
 
+if __name__ == "__main__":
+    x = np.random.rand(100)
+    u = np.sin(np.pi*x)
+    v= np.cos(np.pi*x)
+
+    # fig11 = plt.figure(figsize=(9, 6.5))
+    # plt.legend(loc='right', bbox_to_anchor=(0.9, 1.05), ncol=4, fontsize=12)
+    # plt.scatter(x, u, s=100, c='b', marker='.', label='u')
+    # plt.scatter(x, v, s=100, c='r', marker='1', label='v')
+    # plt.xlabel('x', fontsize=14)
+    # plt.ylabel('y', fontsize=14)
+    # plt.show()
+
+    fig11 = plt.figure(figsize=(9, 6.5))
+    ax = plt.gca()
+    ax.scatter(x, u, s=100, c='b', marker='.', label='u')
+    ax.scatter(x, v, s=100, c='r', marker='1', label='v')
+    ax.legend(loc='right', bbox_to_anchor=(0.9, 1.05), ncol=4, fontsize=12)
+    ax.set_xlabel('x', fontsize=14)
+    ax.set_ylabel('u', fontsize=14)
+    plt.show()

@@ -262,7 +262,7 @@ def solve_Multiscale_PDE(R):
                 UNN_left = UNN_Left2Normal + using_scale2boundary * UNN_Left2Scale
                 UNN_right = UNN_Right2Normal + using_scale2boundary * UNN_Right2Scale
                 Loss_bd2NN = tf.square(UNN_left - U_left) + tf.square(UNN_right - U_right)
-                Loss_bd2NNs = bd_penalty * tf.reduce_mean(Loss_bd2NN)
+                Loss_bd2NNs = tf.reduce_mean(Loss_bd2NN)
             else:
                 loss_bdSquare_Normal = tf.square(UNN_Left2Normal - U_left) + tf.square(UNN_Right2Normal - U_right)
                 loss_bdSquare_Scale= tf.square(using_scale2boundary*UNN_Left2Scale) + \
@@ -270,7 +270,7 @@ def solve_Multiscale_PDE(R):
 
                 Loss_bd2Normal = tf.reduce_mean(loss_bdSquare_Normal)
                 Loss_bd2Scale = tf.reduce_mean(loss_bdSquare_Scale)
-                Loss_bd2NNs = bd_penalty * (Loss_bd2Normal + Loss_bd2Scale)
+                Loss_bd2NNs = (Loss_bd2Normal + Loss_bd2Scale)
 
             if R['regular_wb_model'] == 'L1':
                 regularSum2WB_Normal = DNN_base.regular_weights_biases_L1(Ws_Normal, Bs_Normal)  # 正则化权重和偏置 L1正则化
@@ -284,7 +284,7 @@ def solve_Multiscale_PDE(R):
 
             PWB = penalty2WB * (regularSum2WB_Normal + regularSum2WB_Scale)
 
-            Loss2NN = Loss_it2NN + Loss_bd2NNs + Loss2UNN_dot_UNN + PWB
+            Loss2NN = Loss_it2NN + bd_penalty*Loss_bd2NNs + Loss2UNN_dot_UNN + PWB
 
             my_optimizer = tf.train.AdamOptimizer(in_learning_rate)
             if R['loss_type'] == 'variational_loss':

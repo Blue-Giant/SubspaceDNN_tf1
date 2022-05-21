@@ -973,9 +973,8 @@ def get_infos2pLaplace_5D(input_dim=1, out_dim=1, mesh_number=2, intervalL=0.0, 
 
         A_eps = lambda x, y, z, s, t: tf.ones_like(x)
 
-        u_00 = lambda x, y, z, s, t: tf.sin(np.pi*intervalL)*tf.sin(np.pi*y)*tf.sin(np.pi*z)*tf.sin(np.pi * s)*\
-                                     tf.sin(np.pi*t)+0.05*tf.sin(10*np.pi*intervalL)*tf.sin(10*np.pi*y)*\
-                                     tf.sin(10*np.pi*z)*tf.sin(10*np.pi*s)*tf.sin(10*np.pi*t)
+        u_00 = lambda x, y, z, s, t: tf.sin(np.pi*intervalL)*tf.sin(np.pi*y)*tf.sin(np.pi*z)*tf.sin(np.pi*s)*tf.sin(np.pi*t)+ \
+                                     0.05*tf.sin(10*np.pi*intervalL)*tf.sin(10*np.pi*y)*tf.sin(10*np.pi*z)*tf.sin(10*np.pi*s)*tf.sin(10*np.pi*t)
         u_01 = lambda x, y, z, s, t: tf.sin(np.pi*intervalR)*tf.sin(np.pi*y)*tf.sin(np.pi*z)*tf.sin(np.pi*s)*\
                                      tf.sin(np.pi*t)+0.05*tf.sin(10*np.pi*intervalR)*tf.sin(10*np.pi*y)*\
                                      tf.sin(10*np.pi*z)*tf.sin(10*np.pi*s)*tf.sin(10*np.pi*t)
@@ -1204,7 +1203,8 @@ def get_infos2pLaplace_5D(input_dim=1, out_dim=1, mesh_number=2, intervalL=0.0, 
         return u_true, fside, A_eps, u_00, u_01, u_10, u_11, u_20, u_21, u_30, u_31, u_40, u_41
 
 
-def get_forceSide2pLaplace5D(x=None, y=None, z=None, s=None, t=None, equa_name='multi_scale5D_5'):
+def get_forceSide2pLaplace5D(x=None, y=None, z=None, s=None, t=None, equa_name='multi_scale5D_4'):
+    # -div(A grad U) =f  --> -(Ax*Ux + A*Uxx) = f
     if equa_name == 'multi_scale5D_4':
         u_true = tf.sin(np.pi*x)*tf.sin(np.pi*y)*tf.sin(np.pi*z)*tf.sin(np.pi*s)*tf.sin(np.pi*t)+\
              0.05*tf.sin(10*np.pi*x)*tf.sin(10*np.pi*y)*tf.sin(10*np.pi*z)*tf.sin(10*np.pi*s)*tf.sin(10*np.pi*t)

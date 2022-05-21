@@ -257,32 +257,33 @@ def solve_Multiscale_PDE(R):
 
             if R['loss_type'] == 'variational_loss':
                 dUNN = tf.add(dUNN_Normal, alpha * dUNN_Scale)
-                norm2dUNN = tf.reshape(tf.sqrt(tf.reduce_sum(tf.square(dUNN), axis=-1)), shape=[-1, 1])  # 按行求和
+                norm2dUNN = tf.reshape(tf.reduce_sum(tf.square(dUNN), axis=-1), shape=[-1, 1])  # 按行求和
                 if R['PDE_type'] == 'general_Laplace':
-                    laplace_pow_Normal = tf.square(norm2dUNN)
-                    loss_it_variational2NN = (1.0 / 2) *laplace_pow_Normal - tf.multiply(f(X_it, Y_it, Z_it, S_it, T_it), UNN)
+                    loss_it_variational2NN = (1.0 / 2) *norm2dUNN - tf.multiply(f(X_it, Y_it, Z_it, S_it, T_it), UNN)
                 elif R['PDE_type'] == 'pLaplace':
                     a_eps = A_eps(X_it, Y_it, Z_it, S_it, T_it)                          # * 行 1 列
-                    AdUNN_pNorm = a_eps*tf.pow(norm2dUNN, p_index)
-                    if R['equa_name'] == 'multi_scale5D_5' or R['equa_name'] == 'multi_scale5D_8' or \
-                            R['equa_name'] == 'multi_scale5D_9':
-                        fxyzst = MS_LaplaceEqs.get_forceSide2pLaplace5D(x=X_it, y=Y_it, z=Z_it, s=S_it, t=T_it)
-                        loss_it_variational2NN = (1.0 / p_index) * AdUNN_pNorm - \
+                    AdUNN_pNorm = tf.multiply(a_eps, norm2dUNN)
+                    if R['equa_name'] == 'multi_scale5D_4' or R['equa_name'] == 'multi_scale5D_5' or \
+                            R['equa_name'] == 'multi_scale5D_6' or R['equa_name'] == 'multi_scale5D_7' or \
+                            R['equa_name'] == 'multi_scale5D_8' or R['equa_name'] == 'multi_scale5D_9':
+                        fxyzst = MS_LaplaceEqs.get_forceSide2pLaplace5D(x=X_it, y=Y_it, z=Z_it, s=S_it, t=T_it,
+                                                                        equa_name=R['equa_name'])
+                        loss_it_variational2NN = (1.0 / 2) * AdUNN_pNorm - \
                                               tf.multiply(tf.reshape(fxyzst, shape=[-1, 1]), UNN)
                     else:
-                        loss_it_variational2NN = (1.0 / p_index) * AdUNN_pNorm - tf.multiply(f(X_it, Y_it, Z_it, S_it, T_it), UNN)
+                        loss_it_variational2NN = (1.0 / 2) * AdUNN_pNorm - tf.multiply(f(X_it, Y_it, Z_it, S_it, T_it), UNN)
                 elif R['PDE_type'] == 'Possion_Boltzmann':
                     a_eps = A_eps(X_it, Y_it, Z_it, S_it, T_it)                          # * 行 1 列
                     Kappa = kappa(X_it, Y_it, Z_it, S_it, T_it)  # * 行 1 列
-                    AdUNN_pNorm = a_eps * tf.pow(norm2dUNN, p_index)
+                    AdUNN_pNorm = tf.multiply(a_eps, norm2dUNN)
                     if R['equa_name'] == 'multi_scale5D_4' or R['equa_name'] == 'multi_scale5D_5' or \
                             R['equa_name'] == 'multi_scale5D_6' or R['equa_name'] == 'multi_scale5D_7':
                         fxyzst = MS_BoltzmannEqs.get_forceSide2Boltzmann_5D(x=X_it, y=Y_it, z=Z_it, s=S_it, t=T_it,
                                                                             equa_name=R['equa_name'])
-                        loss_it_variational2NN = (1.0 / p_index) * (AdUNN_pNorm + Kappa * UNN * UNN) - \
+                        loss_it_variational2NN = (1.0 / 2) * (AdUNN_pNorm + Kappa * UNN * UNN) - \
                                              tf.multiply(fxyzst, UNN)
                     else:
-                        loss_it_variational2NN = (1.0 / p_index) * (AdUNN_pNorm + Kappa * UNN * UNN) - \
+                        loss_it_variational2NN = (1.0 / 2) * (AdUNN_pNorm + Kappa * UNN * UNN) - \
                                              tf.multiply(f(X_it, Y_it, Z_it, S_it, T_it), UNN)
             elif R['variational_loss'] == 2:
                 # 0.5*|grad Uc|^p + 0.5*|grad Uf|^p - f(x)*(Uc+Uf)
@@ -307,8 +308,8 @@ def solve_Multiscale_PDE(R):
                     a_eps = A_eps(X_it, Y_it, Z_it, S_it, T_it)  # * 行 1 列
                     ApNorm2dUNN = a_eps * tf.pow(norm2dUNN_Normal, p_index) + \
                                   a_eps * tf.pow(alpha * norm2dUNN_Scale, p_index)
-                    if R['equa_name'] == 'multi_scale5D_4' or R['equa_name'] == 'multi_scale5D_8' or \
-                            R['equa_name'] == 'multi_scale5D_9':
+                    if R['equa_name'] == 'multi_scale5D_4' or R['equa_name'] == 'multi_scale5D_7' or \
+                            R['equa_name'] == 'multi_scale5D_8' or R['equa_name'] == 'multi_scale5D_9':
                         fxyzst = MS_LaplaceEqs.get_forceSide2pLaplace5D(x=X_it, y=Y_it, z=Z_it, s=S_it, t=T_it)
                         loss_it_variational2NN = (1.0 / p_index) * ApNorm2dUNN - \
                                               tf.multiply(tf.reshape(fxyzst, shape=[-1, 1]), UNN)
@@ -354,6 +355,11 @@ def solve_Multiscale_PDE(R):
                 U31_NN = U31_NN_Normal + using_scale2boundary * U31_NN_Scale
                 U40_NN = U30_NN_Normal + using_scale2boundary * U30_NN_Scale
                 U41_NN = U31_NN_Normal + using_scale2boundary * U31_NN_Scale
+                loss_bd_square = tf.square(U00_NN) + tf.square(U01_NN) + tf.square(U10_NN) + \
+                                        tf.square(U11_NN) + tf.square(U20_NN) + tf.square(U21_NN) + \
+                                        tf.square(U30_NN) + tf.square(U31_NN) + tf.square(U40_NN) + \
+                                        tf.square(U41_NN)
+                Loss_bd2NNs = tf.reduce_mean(loss_bd_square)
             else:
                 loss_bd_square2Normal = tf.square(U00_NN_Normal) + tf.square(U01_NN_Normal) + tf.square(U10_NN_Normal) + \
                                        tf.square(U11_NN_Normal) + tf.square(U20_NN_Normal) + tf.square(U21_NN_Normal) + \
@@ -364,9 +370,9 @@ def solve_Multiscale_PDE(R):
                                        tf.square(using_scale2boundary*U20_NN_Scale) + tf.square(using_scale2boundary*U21_NN_Scale) + \
                                        tf.square(using_scale2boundary*U30_NN_Scale) + tf.square(using_scale2boundary*U31_NN_Scale) + \
                                        tf.square(using_scale2boundary*U40_NN_Scale) + tf.square(using_scale2boundary*U41_NN_Scale)
-                Loss_bd2Normal = bd_penalty*tf.reduce_mean(loss_bd_square2Normal)
-                Loss_bd2Scale = bd_penalty*tf.reduce_mean(loss_bd_square2Scale)
-                Loss_bd2NNs = bd_penalty * (Loss_bd2Normal + Loss_bd2Scale)
+                Loss_bd2Normal = tf.reduce_mean(loss_bd_square2Normal)
+                Loss_bd2Scale = tf.reduce_mean(loss_bd_square2Scale)
+                Loss_bd2NNs = Loss_bd2Normal + Loss_bd2Scale
 
             if R['regular_wb_model'] == 'L1':
                 regularSum2WB_Normal = DNN_base.regular_weights_biases_L1(Ws_Normal, Bs_Normal)  # 正则化权重和偏置 L1正则化
@@ -380,7 +386,7 @@ def solve_Multiscale_PDE(R):
 
             PWB = penalty2WB * (regularSum2WB_Normal + regularSum2WB_Scale)
 
-            Loss2NN = Loss_it2NN + Loss_bd2NNs + Loss2UNN_dot_UNN + PWB
+            Loss2NN = Loss_it2NN + bd_penalty*Loss_bd2NNs + Loss2UNN_dot_UNN + PWB
 
             my_optimizer = tf.train.AdamOptimizer(in_learning_rate)
             if R['loss_type'] == 'variational_loss':
@@ -622,10 +628,12 @@ if __name__ == "__main__":
         shutil.copy(__file__, '%s/%s' % (FolderName, os.path.basename(__file__)))
 
     # if the value of step_stop_flag is not 0, it will activate stop condition of step to kill program
-    step_stop_flag = input('please input an  integer number to activate step-stop----0:no---!0:yes--:')
-    R['activate_stop'] = int(step_stop_flag)
+    # step_stop_flag = input('please input an  integer number to activate step-stop----0:no---!0:yes--:')
+    # R['activate_stop'] = int(step_stop_flag)
+    R['activate_stop'] = 0
     # if the value of step_stop_flag is not 0, it will activate stop condition of step to kill program
-    R['max_epoch'] = 200000
+    # R['max_epoch'] = 200000
+    R['max_epoch'] = 100000
     if 0 != R['activate_stop']:
         epoch_stop = input('please input a stop epoch:')
         R['max_epoch'] = int(epoch_stop)
@@ -645,12 +653,12 @@ if __name__ == "__main__":
         # R['equa_name'] = 'multi_scale5D_1'  # general laplace
         # R['equa_name'] = 'multi_scale5D_2'  # multi-scale laplace
         # R['equa_name'] = 'multi_scale5D_3'  # multi-scale laplace
-        # R['equa_name'] = 'multi_scale5D_4'    # multi-scale laplace
+        R['equa_name'] = 'multi_scale5D_4'    # multi-scale laplace
         # R['equa_name'] = 'multi_scale5D_5'  # multi-scale laplace
         # R['equa_name'] = 'multi_scale5D_6'  # multi-scale laplace
         # R['equa_name'] = 'multi_scale5D_7'  # multi-scale laplace
         # R['equa_name'] = 'multi_scale5D_8'  # multi-scale laplace
-        R['equa_name'] = 'multi_scale5D_9'  # multi-scale laplace
+        # R['equa_name'] = 'multi_scale5D_9'  # multi-scale laplace
     elif store_file == 'Boltzmann5D':
         R['PDE_type'] = 'Possion_Boltzmann'
         # R['equa_name'] = 'multi_scale5D_4'
@@ -662,16 +670,16 @@ if __name__ == "__main__":
         R['mesh_number'] = 1
         R['epsilon'] = 0.1
         R['order2pLaplace_operator'] = 2
-        R['batch_size2interior'] = 12500  # 内部训练数据的批大小
-        # R['batch_size2interior'] = 10000  # 内部训练数据的批大小
+        R['batch_size2interior'] = 12500               # 内部训练数据的批大小
+        # R['batch_size2interior'] = 10000             # 内部训练数据的批大小
         # R['batch_size2boundary'] = 1500
         R['batch_size2boundary'] = 2000
     elif R['PDE_type'] == 'pLaplace' or R['PDE_type'] == 'Possion_Boltzmann':
         R['mesh_number'] = 1
         R['epsilon'] = 0.1
         R['order2pLaplace_operator'] = 2
-        R['batch_size2interior'] = 12500  # 内部训练数据的批大小
-        # R['batch_size2interior'] = 10000  # 内部训练数据的批大小
+        R['batch_size2interior'] = 12500               # 内部训练数据的批大小
+        # R['batch_size2interior'] = 10000             # 内部训练数据的批大小
         # R['batch_size2boundary'] = 1500
         R['batch_size2boundary'] = 2000
 
@@ -685,7 +693,7 @@ if __name__ == "__main__":
     # R['loss_type'] = 'variational_loss2'       # PDE变分
     # R['loss_type'] = 'L2_loss'                 # L2 loss
 
-    R['opt2orthogonal'] = 0  # 0: L2-orthogonal(LO)  1: pointwise square orthogonal(PSO)  2:energy
+    R['opt2orthogonal'] = 0                      # 0: L2-orthogonal(LO)  1: pointwise square orthogonal(PSO)  2:energy
     # R['opt2orthogonal'] = 1                    # 0: L2-orthogonal(LO)  1: pointwise square orthogonal(PSO)  2:energy
     # R['opt2orthogonal'] = 2                    # 0: L2-orthogonal(LO)  1: pointwise square orthogonal(PSO)  2:energy
 
@@ -758,6 +766,13 @@ if __name__ == "__main__":
         # R['hidden2scale'] = (500, 400, 300, 300, 200, 100)
         # R['hidden2scale'] = (500, 400, 300, 200, 200, 100)
 
+    # 用于在本地笔记本测试网络
+    # R['batch_size2interior'] = 500
+    # R['batch_size2boundary'] = 10
+    # R['hidden2normal'] = (12, 10, 8, 8, 6)
+    # R['hidden2scale'] = (12, 10, 8, 8, 6)
+    # --------------------------------------
+
     # R['freq2Normal'] = np.arange(10, 100)
     # R['freq2Normal'] = np.concatenate(([1, 1, 1, 1, 1], np.arange(1, 26)), axis=0)
     # R['freq2Normal'] = np.concatenate(([1, 2, 3, 4, 5, 1, 2, 3, 4, 5], np.arange(1, 21)), axis=0)
@@ -796,6 +811,8 @@ if __name__ == "__main__":
         R['sFourier2Normal'] = 1.0
     elif R['model2Normal'] == 'Fourier_DNN' and R['act_name2Normal'] == 's2relu':
         R['sFourier2Normal'] = 0.5
+    elif R['model2Normal'] == 'Fourier_DNN' and R['act_name2Normal'] == 'sin':
+        R['sFourier2Normal'] = 1.0
 
     if R['model2Scale'] == 'Fourier_DNN' and R['act_name2Scale'] == 'tanh':
         R['sFourier2Scale'] = 1.0
@@ -808,16 +825,16 @@ if __name__ == "__main__":
     if R['loss_type'] == 'variational_loss' or R['loss_type'] == 'L2_loss':
         R['init_penalty2orthogonal'] = 20.0
         # R['init_penalty2orthogonal'] = 25.0
-        R['contrib2scale'] = 0.01
-        # R['contrib2scale'] = 0.05
+        # R['contrib2scale'] = 0.01
+        R['contrib2scale'] = 0.05
         # R['contrib2scale'] = 0.1
         # R['contrib2scale'] = 0.5
         # R['contrib2scale'] = 1.0
     elif R['loss_type'] == 'variational_loss2':
         R['init_penalty2orthogonal'] = 20.0
         # R['init_penalty2orthogonal'] = 25.0
-        R['contrib2scale'] = 0.01
-        # R['contrib2scale'] = 0.05
+        # R['contrib2scale'] = 0.01
+        R['contrib2scale'] = 0.05
         # R['contrib2scale'] = 0.1
         # R['contrib2scale'] = 0.5
         # R['contrib2scale'] = 1.0
